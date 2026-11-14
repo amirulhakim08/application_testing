@@ -378,6 +378,7 @@ create policy usage_insert on public.ai_usage_events
 -- Anonymous users get nothing.
 revoke all on all tables in schema public from anon;
 
+
 -- ===== 20261114000002_storage.sql =====
 -- Private bucket for receipt images. Objects live under "<user_id>/<file>".
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -395,6 +396,7 @@ create policy "receipts_insert_own" on storage.objects
 create policy "receipts_delete_own" on storage.objects
   for delete to authenticated
   using (bucket_id = 'receipts' and (storage.foldername(name))[1] = auth.uid()::text);
+
 
 -- ===== 20261114000003_explicit_grants.sql =====
 -- Explicit Data API privileges, so the app works even when the Supabase project
@@ -421,11 +423,23 @@ grant usage, select on all sequences in schema public to authenticated, service_
 -- Anonymous visitors get nothing.
 revoke all on all tables in schema public from anon;
 
+
+-- ===== 20261114000004_harden_functions.sql =====
+-- Security Advisor fixes:
+-- 1) pin search_path on trigger helper functions
+-- 2) trigger-only SECURITY DEFINER function must not be callable through the API
+-- (ensure_my_workspaces stays callable by signed-in users on purpose: it only seeds the caller's own data.)
+alter function public.touch_updated_at() set search_path = public;
+alter function public.forbid_user_change() set search_path = public;
+revoke all on function public.handle_new_user() from public, anon, authenticated;
+
+
 -- ===== record migration history (so `supabase db push` / GitHub deploys skip these) =====
 create schema if not exists supabase_migrations;
 create table if not exists supabase_migrations.schema_migrations (version text primary key, statements text[], name text);
 insert into supabase_migrations.schema_migrations (version, name) values
   ('20261114000001', 'init'),
   ('20261114000002', 'storage'),
-  ('20261114000003', 'explicit_grants')
+  ('20261114000003', 'explicit_grants'),
+  ('20261114000004', 'harden_functions')
 on conflict (version) do nothing;
