@@ -1,5 +1,5 @@
 -- KiraGo: all migrations combined, for pasting into the Supabase SQL Editor in one go.
--- Generated from supabase/migrations/*.sql — run once on a new project.
+-- Only for projects WITHOUT the GitHub integration. Run once on a new project.
 
 -- ===== 20261114000001_init.sql =====
 -- KiraGo initial schema
@@ -420,3 +420,12 @@ grant usage, select on all sequences in schema public to authenticated, service_
 
 -- Anonymous visitors get nothing.
 revoke all on all tables in schema public from anon;
+
+-- ===== record migration history (so `supabase db push` / GitHub deploys skip these) =====
+create schema if not exists supabase_migrations;
+create table if not exists supabase_migrations.schema_migrations (version text primary key, statements text[], name text);
+insert into supabase_migrations.schema_migrations (version, name) values
+  ('20261114000001', 'init'),
+  ('20261114000002', 'storage'),
+  ('20261114000003', 'explicit_grants')
+on conflict (version) do nothing;
