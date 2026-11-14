@@ -98,7 +98,7 @@ cp .env.example .env.local    # fill in values, see below
 
 **Hosted:**
 1. Create a project.
-2. Run both files in `supabase/migrations/` in order. Use the SQL editor, or `supabase link` then `supabase db push`.
+2. Open the SQL Editor and run `supabase/setup.sql` (all migrations combined), or use `supabase link` then `supabase db push`.
 3. In **Auth → URL configuration**, set the Site URL and add `https://YOUR-DOMAIN/auth/confirm` as a redirect URL.
 4. Keep **Confirm email** enabled.
 
