@@ -229,7 +229,7 @@ export function ScanFlow({ today }: { today: string }) {
           uncertain={uncertain}
           errors={fieldErrors?.errors}
           amountOptions={x?.total.options}
-          showMoreInitially={Boolean(x)}
+          showMoreInitially
           idPrefix="scan"
         />
       )}

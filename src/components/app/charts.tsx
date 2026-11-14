@@ -44,7 +44,7 @@ export function MonthlyBars({ data, show = "both", height = 220 }: { data: Serie
           <XAxis dataKey="key" tickFormatter={monthLabel} {...axis} />
           <YAxis tickFormatter={(v: number) => formatMoneyCompact(v)} width={52} {...axis} />
           <Tooltip cursor={{ fill: "var(--muted)", opacity: 0.6 }} content={<TooltipBox labelFormatter={monthLabel} />} />
-          {show === "both" && <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: "var(--muted-foreground)" }} />}
+          {show === "both" && <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span style={{ color: "var(--muted-foreground)" }}>{v}</span>} />}
           {show !== "company" && (
             <Bar dataKey="personal" name={t("ws.personal")} stackId="a" fill="var(--chart-personal)" stroke="var(--card)" strokeWidth={2} radius={show === "both" ? [0, 0, 0, 0] : [4, 4, 0, 0]} maxBarSize={40} />
           )}
@@ -70,7 +70,7 @@ export function TrendLine({ data, show = "both", height = 220, weekly = false }:
           <XAxis dataKey="key" tickFormatter={dayLabel} minTickGap={24} {...axis} />
           <YAxis tickFormatter={(v: number) => formatMoneyCompact(v)} width={52} {...axis} />
           <Tooltip cursor={{ stroke: "var(--muted-foreground)", strokeDasharray: "3 3" }} content={<TooltipBox labelFormatter={label} />} />
-          {show === "both" && <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: "var(--muted-foreground)" }} />}
+          {show === "both" && <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span style={{ color: "var(--muted-foreground)" }}>{v}</span>} />}
           {show !== "company" && (
             <Line type="monotone" dataKey="personal" name={t("ws.personal")} stroke="var(--chart-personal)" strokeWidth={2} dot={data.length <= 14 ? { r: 4, strokeWidth: 2, stroke: "var(--card)" } : false} activeDot={{ r: 5, stroke: "var(--card)", strokeWidth: 2 }} />
           )}

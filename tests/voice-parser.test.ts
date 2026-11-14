@@ -59,6 +59,16 @@ describe("parseVoiceExpenses — more cases", () => {
     expect(list[0]).toMatchObject({ amountCents: 1500, categoryName: "Food & Drinks", date: "2026-11-13" });
     expect(list[1]).toMatchObject({ amountCents: 5000, categoryName: "Transport", date: "2026-11-13" });
   });
+  it("context in a later expense does not leak backwards", () => {
+    const list = parseVoiceExpenses("Semalam beli barang dapur RM85 dekat Lotus dan petrol fifty ringgit untuk personal", { today });
+    expect(list).toHaveLength(2);
+    expect(list[0]).toMatchObject({ amountCents: 8500, workspace: null, date: "2026-11-13", description: "Groceries at Lotus" });
+    expect(list[1]).toMatchObject({ amountCents: 5000, workspace: "personal", date: "2026-11-13", categoryName: "Transport" });
+  });
+  it("per-expense dates", () => {
+    const list = parseVoiceExpenses("kopi RM5 hari ini dan parking RM3 semalam", { today, defaultWorkspace: "personal" });
+    expect(list.map((e) => e.date)).toEqual(["2026-11-14", "2026-11-13"]);
+  });
   it("English with decimals", () => {
     const [e] = parseVoiceExpenses("Paid RM12.50 for coffee at Starbucks today", { today, defaultWorkspace: "personal" });
     expect(e.amountCents).toBe(1250);

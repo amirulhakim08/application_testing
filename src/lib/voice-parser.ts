@@ -280,10 +280,6 @@ export function parseVoiceExpenses(
   if (!source) return [];
   const normalized = numberWordsToDigits(source);
 
-  // Global context (applies to every clause unless the clause overrides it)
-  const globalDate = findDate(normalized, today);
-  const globalWs = findWorkspace(normalized);
-
   // Split into clauses; group clauses so each group contains at most one explicit amount.
   const clauses = normalized.split(SEPARATORS).map((c) => c.trim()).filter(Boolean);
   const explicitTotal = findAmounts(stripDates(normalized, today)).filter((a) => a.explicit).length;
@@ -304,6 +300,10 @@ export function parseVoiceExpenses(
     groups = [normalized];
   }
 
+  // Context said in the first expense ("Semalam ...", "Company beli ...") carries forward to
+  // later ones; context said in a later expense applies only to that expense.
+  const globalDate = findDate(groups[0], today);
+  const globalWs = findWorkspace(groups[0]);
   return groups.map((g) => interpretClause(g, { today, globalDate, globalWs, defaultWorkspace: opts.defaultWorkspace ?? null, source }));
 }
 
