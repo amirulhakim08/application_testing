@@ -62,9 +62,9 @@ export function CategoryManager() {
                     </form>
                   ) : (
                     <>
-                      <span className={c.archived ? "flex-1 text-muted-foreground line-through" : "flex-1"}>{c.name}</span>
+                      <span className={c.archived ? "flex-1 text-muted-foreground line-through" : "flex-1"}>{c.label}</span>
                       {c.archived && <Badge>{t("cat.archived")}</Badge>}
-                      <Button size="icon-sm" variant="ghost" onClick={() => setEditing({ id: c.id, name: c.name })} aria-label={`${t("cat.rename")} ${c.name}`}>
+                      <Button size="icon-sm" variant="ghost" onClick={() => setEditing({ id: c.id, name: c.label })} aria-label={`${t("cat.rename")} ${c.label}`}>
                         <Pencil />
                       </Button>
                       <Button
@@ -72,7 +72,7 @@ export function CategoryManager() {
                         variant="ghost"
                         disabled={busy}
                         onClick={() => run(() => setCategoryArchived(c.id, !c.archived))}
-                        aria-label={`${c.archived ? t("cat.restore") : t("cat.archive")} ${c.name}`}
+                        aria-label={`${c.archived ? t("cat.restore") : t("cat.archive")} ${c.label}`}
                       >
                         {c.archived ? <ArchiveRestore /> : <Archive />}
                       </Button>

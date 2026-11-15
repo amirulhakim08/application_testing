@@ -128,7 +128,7 @@ export function CategoryPicker({ workspaceId, value, onChange, uncertain }: { wo
               )}
             >
               <CategoryIcon icon={c.icon} className="size-3.5" />
-              {c.name}
+              {c.label}
             </button>
           );
         })}

@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <AppDataProvider
       value={{
         workspaces: ctx.workspaces,
-        categories: ctx.categories.map((c) => ({ id: c.id, workspaceId: c.workspaceId, name: c.name, icon: c.icon, archived: c.archived })),
+        categories: ctx.categories.map((c) => ({ id: c.id, workspaceId: c.workspaceId, name: c.name, label: c.label, icon: c.icon, archived: c.archived })),
         lastWorkspaceId: ctx.preferences.lastWorkspaceId,
         lastCategoryByWorkspace: ctx.preferences.lastCategoryByWorkspace,
         receiptRetention: ctx.preferences.receiptRetention,

@@ -8,7 +8,7 @@ export async function GET(req: Request) {
   const ctx = await getContext();
   const filters = filtersFromParams(new URL(req.url).searchParams);
   const expenses = await listExpenses(ctx, filters, 10000);
-  const catName = new Map(ctx.categories.map((c) => [c.id, c.name]));
+  const catName = new Map(ctx.categories.map((c) => [c.id, c.label]));
   const wsName = new Map(ctx.workspaces.map((w) => [w.id, w.name]));
   const csv = toCsv(
     ["Date", "Time", "Workspace", "Workspace type", "Category", "Merchant", "Description", "Amount", "Currency", "Tax", "Discount", "Entry method", "Notes", "ID"],

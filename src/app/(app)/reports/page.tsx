@@ -32,7 +32,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const company = summarizeWorkspace(all, "company", period.current, period.previous, today);
   const scopedTotal = scope === "personal" ? personal.total : scope === "company" ? company.total : personal.total + company.total;
   const cats = categoryBreakdown(ledger, period.current);
-  const catMap = new Map(ctx.categories.map((c) => [c.id, { name: c.name, icon: c.icon }]));
+  const catMap = new Map(ctx.categories.map((c) => [c.id, { name: c.label, icon: c.icon }]));
   const wsOfCat = new Map(ctx.categories.map((c) => [c.id, ctx.kindOf(c.workspaceId)]));
   const top = cats[0];
   const mask = (s: SeriesPoint[]) => (scope === "all" ? s : s.map((p) => ({ ...p, [scope === "personal" ? "company" : "personal"]: 0 })));

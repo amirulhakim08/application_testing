@@ -12,6 +12,7 @@ export interface ClientCategory {
   id: string;
   workspaceId: string;
   name: string;
+  label: string;
   icon: string | null;
   archived: boolean;
 }

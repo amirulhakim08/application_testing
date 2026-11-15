@@ -27,6 +27,7 @@ Advisor afterwards (only expected warning: `ensure_my_workspaces` callable by au
 ## What exists
 Next.js 16 (App Router, `src/proxy.ts`), React 19, Tailwind v4, shadcn-style UI, Recharts, Supabase (RLS everywhere,
 private `receipts` bucket), Zod. EN + BM i18n (`src/lib/i18n`). PWA (`app/manifest.ts`, `public/sw.js`).
+- Default category names are shown in BM when the language is BM (`src/lib/category-labels.ts`, display only; stored names stay English for voice/receipt matching).
 - Money in integer sen (`src/lib/money.ts`); totals always derived from saved rows (`src/lib/aggregate.ts`).
 - Periods (`src/lib/periods.ts`): This week/month cover the full calendar period (forward-dated expenses count);
   comparison is period-to-date; Reports average/day uses elapsed days.
@@ -36,7 +37,7 @@ private `receipts` bucket), Zod. EN + BM i18n (`src/lib/i18n`). PWA (`app/manife
 - See README.md for full architecture, env vars and deployment.
 
 ## Testing
-- `npm test` (Vitest, 73 tests), `npm run typecheck`, `npm run build`
+- `npm test` (Vitest, 76 tests), `npm run typecheck`, `npm run build`
 - `npm run test:db` — migrations + RLS on throwaway Postgres
 - `node e2e/smoke.mjs` — 17-step browser test against local app + local Supabase
   (`npx supabase start -x studio,logflare,vector,edge-runtime,imgproxy,supavisor,realtime,postgres-meta`;
@@ -49,5 +50,4 @@ private `receipts` bucket), Zod. EN + BM i18n (`src/lib/i18n`). PWA (`app/manife
 
 ## Open ideas / not done
 - Optional: AI keys for higher-accuracy receipts and real speech-to-text.
-- Default category names are English in BM UI.
 - Leaked Password Protection is off in Supabase Auth.

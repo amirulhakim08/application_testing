@@ -6,6 +6,7 @@ import { parseToCents, type Cents } from "@/lib/money";
 import type { LedgerRow, WorkspaceKind } from "@/lib/aggregate";
 import type { ISODate } from "@/lib/dates";
 import { normalizeLang, type Lang } from "@/lib/i18n";
+import { categoryLabel } from "@/lib/category-labels";
 
 export interface Workspace {
   id: string;
@@ -16,6 +17,8 @@ export interface Category {
   id: string;
   workspaceId: string;
   name: string;
+  /** Display name in the user's language (default categories translated). */
+  label: string;
   icon: string | null;
   archived: boolean;
   sortOrder: number;
@@ -102,16 +105,18 @@ export const getContext = cache(async () => {
   const ws: Workspace[] = (workspaces ?? []).map((w) => ({ id: w.id, kind: w.kind, name: w.name }));
   const personal = ws.find((w) => w.kind === "personal")!;
   const company = ws.find((w) => w.kind === "company")!;
+  const language = normalizeLang(prefs?.language);
   const cats: Category[] = (categories ?? []).map((c) => ({
     id: c.id,
     workspaceId: c.workspace_id,
     name: c.name,
+    label: categoryLabel(c.name, language),
     icon: c.icon,
     archived: Boolean(c.archived_at),
     sortOrder: c.sort_order,
   }));
   const preferences: Preferences = {
-    language: normalizeLang(prefs?.language),
+    language,
     theme: prefs?.theme ?? "system",
     currency: prefs?.currency ?? "MYR",
     receiptRetention: prefs?.receipt_retention ?? "keep",
@@ -209,7 +214,7 @@ export function toRowData(ctx: AppContext, e: Expense) {
     date: e.date,
     workspaceKind: e.workspaceKind,
     workspaceName: ctx.workspaces.find((w) => w.id === e.workspaceId)?.name ?? "",
-    categoryName: cat?.name ?? null,
+    categoryName: cat?.label ?? null,
     categoryIcon: cat?.icon ?? null,
     entryMethod: e.entryMethod,
     hasReceipt: Boolean(e.receiptFileId),

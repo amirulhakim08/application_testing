@@ -77,7 +77,7 @@ export function ExpenseFilterBar() {
               <option value="">{t("exp.allCategories")}</option>
               {cats.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {c.label}
                   {!wsId ? ` · ${workspaces.find((w) => w.id === c.workspaceId)?.kind === "company" ? t("ws.company") : t("ws.personal")}` : ""}
                   {c.archived ? ` (${t("cat.archived")})` : ""}
                 </option>

@@ -28,7 +28,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
   const personal = summarizeWorkspace(ledger, "personal", period.current, period.previous, today);
   const company = summarizeWorkspace(ledger, "company", period.current, period.previous, today);
-  const catMap = new Map(ctx.categories.map((c) => [c.id, { name: c.name, icon: c.icon }]));
+  const catMap = new Map(ctx.categories.map((c) => [c.id, { name: c.label, icon: c.icon }]));
   const firstName = ctx.user.fullName?.split(" ")[0];
 
   return (
