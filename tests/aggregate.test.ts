@@ -11,6 +11,7 @@ const rows: LedgerRow[] = [
   { id: "5", workspaceKind: "company", categoryId: "p", amountCents: 12000, date: "2026-10-14" },
   { id: "6", workspaceKind: "company", categoryId: "p", amountCents: 99999, date: "2026-10-20" }, // outside MTD comparison
 ];
+const forward: LedgerRow = { id: "7", workspaceKind: "personal", categoryId: "t", amountCents: 25200, date: "2026-11-20" };
 
 describe("summarizeWorkspace", () => {
   const p = resolvePeriod("month", { today });
@@ -30,6 +31,12 @@ describe("summarizeWorkspace", () => {
     const moved = rows.map((r) => (r.id === "2" ? { ...r, workspaceKind: "personal" as const } : r));
     expect(summarizeWorkspace(moved, "personal", p.current, p.previous, today).total).toBe(37500);
     expect(summarizeWorkspace(moved, "company", p.current, p.previous, today).total).toBe(0);
+  });
+  it("forward-dated expenses in this month count in the month total but not today", () => {
+    const s2 = summarizeWorkspace([...rows, forward], "personal", p.current, p.previous, today);
+    expect(s2.total).toBe(13500 + 25200);
+    expect(s2.today).toBe(5000);
+    expect(s2.count).toBe(3);
   });
   it("deleted rows (filtered out) disappear from totals", () => {
     const remaining = rows.filter((r) => r.id !== "3");

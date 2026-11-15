@@ -1,6 +1,6 @@
 import { getContext, getLedger } from "@/lib/data";
 import { getI18n } from "@/lib/i18n/server";
-import { resolvePeriod } from "@/lib/periods";
+import { elapsedPart, resolvePeriod } from "@/lib/periods";
 import { addMonths, startOfMonth, todayKL } from "@/lib/dates";
 import { averageDaily, categoryBreakdown, dailySeries, monthlySeries, summarizeWorkspace, weeklySeries, type SeriesPoint } from "@/lib/aggregate";
 import { formatMoney } from "@/lib/money";
@@ -40,7 +40,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const tiles = [
     { label: `${t("ws.personal")} · ${t("dash.totalSpent")}`, value: formatMoney(personal.total), hide: scope === "company" },
     { label: `${ctx.company.name} · ${t("dash.totalSpent")}`, value: formatMoney(company.total), hide: scope === "personal" },
-    { label: t("rep.avgDaily"), value: formatMoney(averageDaily(scopedTotal, period.current)) },
+    { label: t("rep.avgDaily"), value: formatMoney(averageDaily(scopedTotal, elapsedPart(period.current, today))) },
     { label: t("rep.topCategories"), value: top ? catMap.get(top.categoryId ?? "")?.name ?? "—" : "—", sub: top ? formatMoney(top.total) : undefined },
   ].filter((x) => !x.hide);
 

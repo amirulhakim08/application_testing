@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolvePeriod } from "@/lib/periods";
+import { elapsedPart, resolvePeriod } from "@/lib/periods";
 import { todayKL } from "@/lib/dates";
 
 describe("todayKL", () => {
@@ -15,7 +15,8 @@ describe("resolvePeriod", () => {
   it("defaults to this month, compared month-to-date", () => {
     const p = resolvePeriod(undefined, { today });
     expect(p.key).toBe("month");
-    expect(p.current).toEqual({ from: "2026-11-01", to: "2026-11-14" });
+    // whole month counts (incl. forward-dated expenses); comparison stays month-to-date
+    expect(p.current).toEqual({ from: "2026-11-01", to: "2026-11-30" });
     expect(p.previous).toEqual({ from: "2026-10-01", to: "2026-10-14" });
   });
   it("today vs yesterday", () => {
@@ -23,7 +24,7 @@ describe("resolvePeriod", () => {
   });
   it("week starts Monday", () => {
     const p = resolvePeriod("week", { today });
-    expect(p.current).toEqual({ from: "2026-11-09", to: "2026-11-14" });
+    expect(p.current).toEqual({ from: "2026-11-09", to: "2026-11-15" });
     expect(p.previous).toEqual({ from: "2026-11-02", to: "2026-11-07" });
   });
   it("last month is full month", () => {
@@ -43,5 +44,9 @@ describe("resolvePeriod", () => {
   it("ignores invalid dates", () => {
     const p = resolvePeriod("custom", { today, from: "2026-02-30", to: "x" });
     expect(p.current).toEqual({ from: "2026-11-01", to: "2026-11-14" });
+  });
+  it("elapsed part of a period for averages", () => {
+    expect(elapsedPart({ from: "2026-11-01", to: "2026-11-30" }, today)).toEqual({ from: "2026-11-01", to: "2026-11-14" });
+    expect(elapsedPart({ from: "2026-10-01", to: "2026-10-31" }, today)).toEqual({ from: "2026-10-01", to: "2026-10-31" });
   });
 });

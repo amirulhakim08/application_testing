@@ -27,8 +27,9 @@ export interface ResolvedPeriod {
 /**
  * Resolve a reporting period and its "previous equivalent period".
  * - today      -> yesterday
- * - week       -> same number of elapsed days in the previous week
- * - month      -> same number of elapsed days in the previous month (month-to-date comparison)
+ * - week       -> the whole calendar week (Mon–Sun, so forward-dated expenses count);
+ *                 compared with the same number of elapsed days of the previous week
+ * - month      -> the whole calendar month; compared month-to-date with the previous month
  * - last_month -> the month before last (full months)
  * - custom     -> the same-length window immediately before
  */
@@ -46,7 +47,7 @@ export function resolvePeriod(
       const from = startOfWeek(today);
       const elapsed = daysBetweenInclusive(from, today);
       const prevFrom = addDays(from, -7);
-      return { key: k, current: { from, to: today }, previous: { from: prevFrom, to: addDays(prevFrom, elapsed - 1) } };
+      return { key: k, current: { from, to: addDays(from, 6) }, previous: { from: prevFrom, to: addDays(prevFrom, elapsed - 1) } };
     }
     case "last_month": {
       const from = startOfMonth(addMonths(startOfMonth(today), -1));
@@ -69,11 +70,16 @@ export function resolvePeriod(
       const elapsed = daysBetweenInclusive(from, today);
       const prevEnd = endOfMonth(prevFrom);
       const prevTo = addDays(prevFrom, elapsed - 1) > prevEnd ? prevEnd : addDays(prevFrom, elapsed - 1);
-      return { key: "month", current: { from, to: today }, previous: { from: prevFrom, to: prevTo } };
+      return { key: "month", current: { from, to: endOfMonth(today) }, previous: { from: prevFrom, to: prevTo } };
     }
   }
 }
 
 export function inRange(date: ISODate, range: DateRange): boolean {
   return date >= range.from && date <= range.to;
+}
+
+/** The part of a range that has already happened (for per-day averages). */
+export function elapsedPart(range: DateRange, today: ISODate = todayKL()): DateRange {
+  return { from: range.from, to: range.to > today ? (today < range.from ? range.from : today) : range.to };
 }
