@@ -8,3 +8,4 @@ next-env.d.ts
 coverage
 .vercel
 public/ocr/
+*.traineddata
