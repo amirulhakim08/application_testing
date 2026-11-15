@@ -27,10 +27,11 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  // Refreshes the session cookie. Do not put code between createServerClient and getUser.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Refreshes the session cookie when needed and verifies the JWT. With asymmetric signing keys
+  // this is a local check (no Auth round trip); otherwise it falls back to the Auth server.
+  // Do not put code between createServerClient and getClaims.
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims?.sub ? { id: data.claims.sub } : null;
 
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   const isApi = pathname.startsWith("/api/");

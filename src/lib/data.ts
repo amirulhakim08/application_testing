@@ -76,10 +76,11 @@ export function mapExpense(r: Row, kindOf: (wsId: string) => WorkspaceKind): Exp
 /** Authenticated user + workspaces + categories + preferences. Cached per request. */
 export const getContext = cache(async () => {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  // Verified JWT claims (local verification with asymmetric keys; Auth-server fallback otherwise).
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const claims = claimsData?.claims;
+  if (!claims?.sub) redirect("/login");
+  const user = { id: claims.sub as string, email: (claims.email as string | undefined) ?? "" };
 
   let [{ data: workspaces }, { data: categories }, { data: prefs }, { data: profile }] = await Promise.all([
     supabase.from("workspaces").select("id, kind, name, created_at").is("archived_at", null).order("created_at"),
