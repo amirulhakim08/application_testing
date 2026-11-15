@@ -2,6 +2,8 @@
 
 **Snap it. Say it. Track it.**
 
+**Live app:** https://kiragolive.vercel.app
+
 KiraGo is a mobile-first Progressive Web App for recording daily expenses in seconds: scan a receipt, say it out loud (Bahasa Melayu, English or a mix), or type it. Every expense belongs to exactly one of two separate workspaces, **Personal** or **Company**. The dashboard shows a total for each one, worked out from saved transactions.
 
 > KiraGo tracks **spending only**. Totals are money spent, not account balances.
