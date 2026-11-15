@@ -104,6 +104,10 @@ export const ms: Record<MessageKey, string> = {
   "scan.enterManually": "Isi manual",
   "scan.aiUnavailable": "AI resit belum dikonfigurasi. Anda boleh lampirkan gambar dan isi butiran secara manual.",
   "scan.cached": "Gambar ini sudah diproses — keputusan lama digunakan (tiada kos AI tambahan).",
+  "scan.ocrReading": "Membaca resit dalam telefon anda (percuma)…",
+  "scan.ocrIntro": "Resit dibaca secara percuma dalam peranti anda. Semak jumlah sebelum simpan.",
+  "scan.ocrDone": "Dibaca dengan OCR percuma dalam peranti. Sila semak semua medan bertanda, terutamanya jumlah.",
+  "scan.ocrFailed": "Gambar ini tak dapat dibaca secara automatik. Sila isi butiran.",
   "scan.items": "{n} item dikesan",
 
   "voice.title": "Perbelanjaan suara",

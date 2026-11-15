@@ -123,10 +123,27 @@ npx supabase start   # applies migrations; prints the URL/anon/service keys
 AI keys are read only in server code (`import "server-only"`).
 
 If AI keys are missing, the app still works:
-* **Scanning:** the photo is stored and the user fills in the fields by hand.
+* **Scanning:** the receipt is read **for free on the user's device** with Tesseract.js (English + Malay), see below.
 * **Voice:** without OpenAI, the browser's speech recognition is used if available, otherwise typing. The free rule parser still interprets the text.
 
 To use a different provider, implement `ReceiptVisionProvider`, `TranscriptionProvider` or `ExpenseTextInterpreter` (`src/lib/ai/types.ts`) and register it in `src/lib/ai/index.ts`.
+
+### Free receipt reading (on-device OCR)
+
+When no `ANTHROPIC_API_KEY` is set, or the AI fails or hits its hourly limit, the scan screen reads the
+receipt in the browser with Tesseract.js. It costs nothing and the image is not sent to any AI service for this step.
+
+* **Assets:** the worker, WASM core and `eng` + `msa` language data are self-hosted from `public/ocr/`.
+  `scripts/copy-ocr-assets.mjs` copies them on `postinstall` / `prebuild`. The first scan downloads about 7 MB;
+  the service worker caches it after that.
+* **Parsing:** `src/lib/ocr/parse-receipt-text.ts` turns the text into the same structure the AI returns.
+  * Recognised lines include TOTAL/JUMLAH, SUBTOTAL, SST/GST, service charge, discount, rounding, CASH/TUNAI, CHANGE/BAKI and card or e-wallet payments.
+  * It also picks up the date, time and merchant.
+  * The result then goes through the same `sanitizeReceipt()` and `resolveReceiptTotal()` checks as AI output.
+* **Always reviewed:** OCR confidence is capped at 0.75, so every OCR result is marked for review and the
+  user must tick "I've checked this amount". A missing total is never invented.
+* **Limits:** it is less accurate than AI on blurred, crumpled, faded thermal or handwritten receipts.
+  Individual item lines are best-effort.
 
 ### Receipt retention job
 

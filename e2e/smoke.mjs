@@ -116,24 +116,36 @@ try {
     assert.equal(await cardTotal("Personal"), "RM147.50");
   });
 
-  await step("receipt scan without AI key: stored privately, manual completion, no AI amount", async () => {
+  await step("receipt scan without AI key: free on-device OCR reads the total, user must confirm", async () => {
     receiptPath = `/tmp/claude-0/receipt-${stamp}.png`;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900"><rect width="100%" height="100%" fill="white"/>
-      <text x="40" y="80" font-size="36" font-family="monospace">MYDIN MART ${stamp}</text>
-      <text x="40" y="200" font-size="28" font-family="monospace">SUBTOTAL 50.00</text>
-      <text x="40" y="250" font-size="28" font-family="monospace">SST 6% 3.00</text>
-      <text x="40" y="320" font-size="32" font-family="monospace">TOTAL 53.00</text>
-      <text x="40" y="380" font-size="28" font-family="monospace">CASH 100.00</text>
-      <text x="40" y="430" font-size="28" font-family="monospace">CHANGE 47.00</text></svg>`;
+    const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kuala_Lumpur" }).format(new Date());
+    const [yy, mm, dd] = todayIso.split("-");
+    const lines = [
+      ["MYDIN MART", 40, 36],
+      [`Date: ${dd}/${mm}/${yy} Time: 18:42`, 40, 26],
+      ["Milo 1kg            25.90", 40, 26],
+      ["Beras 5kg           24.10", 40, 26],
+      ["SUBTOTAL            50.00", 40, 26],
+      ["SST 6%               3.00", 40, 26],
+      ["TOTAL               53.00", 40, 30],
+      ["CASH               100.00", 40, 26],
+      ["CHANGE              47.00", 40, 26],
+    ];
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="${120 + lines.length * 60}"><rect width="100%" height="100%" fill="white"/>${lines
+      .map(([text, x, size], i) => `<text x="${x}" y="${90 + i * 60}" font-size="${size}" font-family="DejaVu Sans Mono, monospace" xml:space="preserve">${text}</text>`)
+      .join("")}</svg>`;
     await sharp(Buffer.from(svg)).png().toFile(receiptPath);
     await page.goto(`${BASE}/add/scan`);
     await page.locator('input[type=file]:not([capture])').setInputFiles(receiptPath);
-    await page.getByText("Review details").waitFor();
-    await page.getByText("Receipt AI isn't configured").first().waitFor();
-    assert.equal(await page.inputValue("#scan-amount"), ""); // never invented
-    await page.fill("#scan-amount", "53.00");
+    await page.getByText("Review details").waitFor({ timeout: 120000 });
+    await page.getByText("Read with free on-device OCR").waitFor();
+    assert.equal(await page.inputValue("#scan-amount"), "53.00");
+    assert.equal(await page.inputValue("#scan-date"), todayIso);
+    // OCR amounts always need explicit confirmation
     await page.getByRole("radio", { name: "Personal" }).click();
-    await page.getByRole("radio", { name: "Groceries" }).click();
+    assert.equal(await page.getByRole("radio", { name: "Groceries" }).getAttribute("aria-checked"), "true");
+    assert.equal(await page.getByRole("button", { name: "Save expense" }).isDisabled(), true);
+    await page.getByText("I've checked this amount").click();
     await page.fill("#scan-merchant", "Mydin");
     await shot(page, "06-scan-review-mobile");
     await page.getByRole("button", { name: "Save expense" }).click();
@@ -144,10 +156,10 @@ try {
   await step("re-scanning the same receipt image warns about a duplicate", async () => {
     await page.goto(`${BASE}/add/scan`);
     await page.locator('input[type=file]:not([capture])').setInputFiles(receiptPath);
-    await page.getByText("Review details").waitFor();
+    await page.getByText("Review details").waitFor({ timeout: 120000 });
     await page.getByText("Same receipt image").first().waitFor();
-    await page.fill("#scan-amount", "53.00");
     await page.getByRole("radio", { name: "Personal" }).click();
+    await page.getByText("I've checked this amount").click();
     await page.getByRole("button", { name: "Save expense" }).click();
     await page.getByRole("heading", { name: "Possible duplicate" }).waitFor();
     await page.getByRole("button", { name: "Go back" }).click();

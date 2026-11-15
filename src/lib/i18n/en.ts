@@ -102,6 +102,10 @@ export const en = {
   "scan.enterManually": "Enter manually",
   "scan.aiUnavailable": "Receipt AI isn't configured. You can attach the photo and enter details manually.",
   "scan.cached": "Already processed this image — reused previous result (no extra AI cost).",
+  "scan.ocrReading": "Reading receipt on your phone (free)…",
+  "scan.ocrIntro": "Receipts are read for free on your device. Check the amount before saving.",
+  "scan.ocrDone": "Read with free on-device OCR. Please check every highlighted field, especially the total.",
+  "scan.ocrFailed": "We couldn't read this photo automatically. Please enter the details.",
   "scan.items": "{n} items detected",
 
   "voice.title": "Voice expense",

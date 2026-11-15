@@ -9,7 +9,8 @@ import { cn } from "@/lib/utils";
 import { compressImage, validateImageFile } from "@/lib/client-image";
 import { formatMoney } from "@/lib/money";
 import { formatDateLabel } from "@/lib/dates";
-import type { SanitizedReceipt } from "@/lib/receipt-sanitize";
+import { sanitizeReceipt, type SanitizedReceipt } from "@/lib/receipt-sanitize";
+import { parseReceiptText } from "@/lib/ocr/parse-receipt-text";
 import { ExpenseFields, draftToInput, type DraftField, type ExpenseDraft } from "./expense-fields";
 import { useSaveExpenses } from "./use-save";
 import { useAppData, useWorkspaceHelpers } from "./app-data";
@@ -21,10 +22,12 @@ interface ScanResponse {
   aiUnavailable?: boolean;
   aiError?: string;
   cached: boolean;
+  /** Set on the client when the free on-device OCR produced the extraction. */
+  ocr?: "ok" | "failed";
   duplicates: Array<{ level: string; expense: { id: string; amountCents: number; date: string; merchant: string | null; description: string | null } }>;
 }
 
-type Stage = { kind: "pick" } | { kind: "processing"; step: "optimizing" | "reading" } | { kind: "error"; message: string } | { kind: "review"; data: ScanResponse };
+type Stage = { kind: "pick" } | { kind: "processing"; step: "optimizing" | "reading" | "ocr"; percent?: number } | { kind: "error"; message: string } | { kind: "review"; data: ScanResponse };
 
 const AI_ERROR_TEXT: Record<string, string> = {
   rate_limited: "You've reached the hourly scan limit. Please enter details manually or try again later.",
@@ -34,7 +37,7 @@ const AI_ERROR_TEXT: Record<string, string> = {
 
 export function ScanFlow({ today }: { today: string }) {
   const { t, lang } = useI18n();
-  const { ai } = useAppData();
+  const { ai, categories } = useAppData();
   const { categoryByName } = useWorkspaceHelpers();
   const cameraRef = React.useRef<HTMLInputElement>(null);
   const uploadRef = React.useRef<HTMLInputElement>(null);
@@ -71,6 +74,21 @@ export function ScanFlow({ today }: { today: string }) {
       const res = await fetch("/api/receipts/scan", { method: "POST", body });
       const json = (await res.json().catch(() => ({}))) as ScanResponse & { message?: string };
       if (!res.ok) return setStage({ kind: "error", message: json.message ?? t("scan.failed") });
+
+      // No AI result (no key, limit reached or AI error): read it for free on the device.
+      if (!json.extraction) {
+        setStage({ kind: "processing", step: "ocr", percent: 0 });
+        try {
+          const { ocrReceipt } = await import("@/lib/ocr/tesseract-client");
+          const { text, confidence } = await ocrReceipt(file, (percent) => setStage({ kind: "processing", step: "ocr", percent }));
+          const names = [...new Set(categories.filter((c) => !c.archived).map((c) => c.name))];
+          const parsed = sanitizeReceipt(parseReceiptText(text, { today, ocrConfidence: confidence }), today, names);
+          json.extraction = { ...parsed, needsReview: true };
+          json.ocr = "ok";
+        } catch {
+          json.ocr = "failed";
+        }
+      }
       const x = json.extraction;
       setSuggestedCategory(x?.categoryName ?? null);
       setDraft({
@@ -96,7 +114,7 @@ export function ScanFlow({ today }: { today: string }) {
       <div className="grid gap-4">
         {!ai.receiptScan && (
           <Notice tone="info" icon={Info}>
-            {t("scan.aiUnavailable")}
+            {t("scan.ocrIntro")}
           </Notice>
         )}
         {stage.kind === "error" && (
@@ -136,7 +154,7 @@ export function ScanFlow({ today }: { today: string }) {
         )}
         <div className="flex items-center gap-2 text-sm font-medium">
           <Loader2 className="size-4 animate-spin" />
-          {stage.step === "optimizing" ? t("scan.optimizing") : t("scan.processing")}
+          {stage.step === "optimizing" ? t("scan.optimizing") : stage.step === "ocr" ? `${t("scan.ocrReading")} ${stage.percent ? `${stage.percent}%` : ""}` : t("scan.processing")}
         </div>
         <style>{`@keyframes scan{0%{top:-3rem}100%{top:100%}}`}</style>
       </Card>
@@ -205,8 +223,9 @@ export function ScanFlow({ today }: { today: string }) {
 
       <div className="grid gap-2">
         {data.cached && <Notice tone="info" icon={Info}>{t("scan.cached")}</Notice>}
-        {data.aiUnavailable && <Notice tone="info" icon={Info}>{t("scan.aiUnavailable")}</Notice>}
-        {data.aiError && <Notice tone="warning" icon={AlertTriangle}>{AI_ERROR_TEXT[data.aiError] ?? t("scan.failed")} {t("scan.enterManually")}.</Notice>}
+        {data.ocr === "ok" && <Notice tone="warning" icon={AlertTriangle}>{t("scan.ocrDone")}</Notice>}
+        {data.ocr === "failed" && <Notice tone="warning" icon={AlertTriangle}>{t("scan.ocrFailed")}</Notice>}
+        {data.aiError && data.ocr !== "ok" && <Notice tone="warning" icon={AlertTriangle}>{AI_ERROR_TEXT[data.aiError] ?? t("scan.failed")} {t("scan.enterManually")}.</Notice>}
         {x && !x.isReceipt && <Notice tone="warning" icon={AlertTriangle}>{t("scan.notReceipt")}</Notice>}
         {x && status === "ambiguous" && <Notice tone="warning" icon={AlertTriangle}>{t("scan.ambiguous")}</Notice>}
         {x && status === "missing" && <Notice tone="warning" icon={AlertTriangle}>{t("scan.missingTotal")}</Notice>}

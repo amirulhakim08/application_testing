@@ -1,6 +1,6 @@
 // KiraGo service worker: caches the app shell/static assets only.
 // Financial data (pages, API, Supabase) is always fetched from the network and never cached.
-const CACHE = "kirago-static-v1";
+const CACHE = "kirago-static-v2";
 const PRECACHE = ["/offline", "/icons/icon.svg", "/icons/icon-192.png"];
 
 self.addEventListener("install", (event) => {
@@ -19,7 +19,8 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/")) {
+  // Static assets, icons and the self-hosted OCR engine (large, versioned with the app) are cache-first.
+  if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/") || url.pathname.startsWith("/ocr/")) {
     event.respondWith(
       caches.match(req).then(
         (hit) =>

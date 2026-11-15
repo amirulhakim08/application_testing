@@ -12,7 +12,7 @@ export const DEFAULT_CATEGORIES: Record<WorkspaceKind, string[]> = {
  */
 export const CATEGORY_HINTS: Record<WorkspaceKind, Record<string, string[]>> = {
   personal: {
-    Groceries: ["barang dapur", "groceries", "grocery", "barang basah", "pasar", "lotus", "lotus's", "tesco", "mydin", "aeon", "giant", "jaya grocer", "village grocer", "econsave", "speedmart", "99 speedmart", "nsk", "sayur", "ikan", "ayam"],
+    Groceries: ["barang dapur", "groceries", "grocery", "beras", "milo", "gula", "tepung", "telur", "minyak masak", "roti", "susu", "mart", "hypermarket", "supermarket", "pasaraya", "kk mart", "family mart", "familymart", "7-eleven", "barang basah", "pasar", "lotus", "lotus's", "tesco", "mydin", "aeon", "giant", "jaya grocer", "village grocer", "econsave", "speedmart", "99 speedmart", "nsk", "sayur", "ikan", "ayam"],
     "Food & Drinks": ["makan", "makanan", "lunch", "dinner", "breakfast", "sarapan", "makan tengahari", "makan malam", "nasi", "kopi", "coffee", "teh", "mamak", "restoran", "restaurant", "cafe", "kfc", "mcd", "mcdonald", "starbucks", "zus", "tealive", "food", "minum", "drinks", "foodpanda", "grabfood"],
     Transport: ["petrol", "minyak kereta", "minyak", "diesel", "fuel", "grab", "toll", "tol", "parking", "letak kereta", "lrt", "mrt", "bas", "bus", "teksi", "taxi", "touch n go", "tng", "shell", "petronas", "caltex", "bhp", "servis kereta", "car service"],
     Bills: ["bil", "bill", "elektrik", "electric", "tnb", "bil air", "water bill", "internet", "unifi", "maxis", "celcom", "digi", "umobile", "astro", "phone bill", "telefon", "sewa rumah", "insurance", "insurans", "takaful"],
