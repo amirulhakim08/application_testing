@@ -14,7 +14,8 @@ Context for the next working session ("02 KiraGo Update"). No secrets in this fi
   Auth URL config: Site URL `https://kiragolive.vercel.app`, redirect `https://kiragolive.vercel.app/**`.
 - Old Supabase project (Sydney) ref `uuunkzpsquzivbfqdkfa` is the previous home; data was copied to kirago-sg on 2026-11-15
   (receipt *images* were not copied — 3 receipts show "image no longer stored"). Its GitHub integration still points at
-  the old project. Owner plans to pause/delete it after a week.
+  the old project. PAUSED on 2026-11-16 (its Vercel integration removed, GitHub deploy-to-production off). Owner may delete it
+  after ~2026-11-23.
 - Vercel env vars: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY (publishable key), SUPABASE_SERVICE_ROLE_KEY,
   CRON_SECRET (set manually, Production only, on 2026-11-16). The Supabase↔Vercel integration on the OLD project kept
   overwriting these back to Sydney; it was disconnected on 2026-11-16 (GitHub integration on the old project too).
