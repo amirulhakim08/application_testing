@@ -16,7 +16,10 @@ Context for the next working session ("02 KiraGo Update"). No secrets in this fi
   (receipt *images* were not copied — 3 receipts show "image no longer stored"). Its GitHub integration still points at
   the old project. Owner plans to pause/delete it after a week.
 - Vercel env vars: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY (publishable key), SUPABASE_SERVICE_ROLE_KEY,
-  CRON_SECRET. No ANTHROPIC_API_KEY / OPENAI_API_KEY yet (receipts use free on-device OCR; voice uses typed/browser
+  CRON_SECRET (set manually, Production only, on 2026-11-16). The Supabase↔Vercel integration on the OLD project kept
+  overwriting these back to Sydney; it was disconnected on 2026-11-16 (GitHub integration on the old project too).
+  Do NOT reconnect the integration. Verified via kirago-sg logs that the live app now talks to kirago-sg.
+  No ANTHROPIC_API_KEY / OPENAI_API_KEY yet (receipts use free on-device OCR; voice uses typed/browser
   speech + free rule parser).
 
 ## Applying DB changes
