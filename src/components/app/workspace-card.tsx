@@ -14,8 +14,8 @@ export function WorkspaceCard({ kind, name, summary, t }: { kind: "personal" | "
       className={cn(
         "relative isolate flex min-h-44 flex-col overflow-hidden rounded-3xl p-4 text-white shadow-lg sm:min-h-52 sm:p-6",
         personal
-          ? "bg-[linear-gradient(145deg,#1b5a40_0%,#123f2d_60%,#0d3123_100%)] shadow-[#1b5a40]/20"
-          : "bg-[linear-gradient(145deg,#2f4a8a_0%,#21376b_60%,#192a54_100%)] shadow-[#2f4a8a]/20",
+          ? "bg-[linear-gradient(145deg,#c58856_0%,#a96b3a_60%,#8a552c_100%)] shadow-[#b77945]/20"
+          : "bg-[linear-gradient(145deg,#24486c_0%,#17324d_60%,#0f2236_100%)] shadow-[#17324d]/20",
       )}
     >
       <div aria-hidden className="pointer-events-none absolute -right-10 -top-12 -z-10 size-40 rounded-full bg-white/10 blur-2xl" />

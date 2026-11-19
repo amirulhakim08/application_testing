@@ -12,7 +12,7 @@ import { Input, Label, Select } from "@/components/ui/input";
 import { Segmented } from "@/components/ui/segmented";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { deleteAccount, deleteAllReceiptImages, updatePreferences, updateProfile } from "@/app/actions/settings";
+import { changePassword, deleteAccount, deleteAllReceiptImages, updatePreferences, updateProfile } from "@/app/actions/settings";
 import { signOut } from "@/app/actions/auth";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -29,7 +29,7 @@ export function SettingsForms({
   prefs,
   usage,
 }: {
-  profile: { fullName: string; email: string; companyName: string };
+  profile: { fullName: string; email: string };
   prefs: { language: "en" | "ms"; theme: "system" | "light" | "dark"; receiptRetention: "keep" | "days_90" | "none"; currency: string };
   usage: { scans: number; transcriptions: number; errors: number };
 }) {
@@ -37,7 +37,6 @@ export function SettingsForms({
   const router = useRouter();
   const { setTheme } = useTheme();
   const [name, setName] = React.useState(profile.fullName);
-  const [company, setCompany] = React.useState(profile.companyName);
   const [saving, setSaving] = React.useState(false);
   const [theme, setThemeState] = React.useState(prefs.theme);
   const [confirm, setConfirm] = React.useState<"receipts" | "account" | null>(null);
@@ -59,7 +58,7 @@ export function SettingsForms({
           onSubmit={async (e) => {
             e.preventDefault();
             setSaving(true);
-            const res = await updateProfile(name, company);
+            const res = await updateProfile(name);
             setSaving(false);
             if (res.ok) {
               toast.success(t("set.saved"));
@@ -71,20 +70,18 @@ export function SettingsForms({
             <Label htmlFor="s-email">{t("set.email")}</Label>
             <Input id="s-email" value={profile.email} disabled />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="s-name">{t("set.fullName")}</Label>
-              <Input id="s-name" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} />
-            </div>
-            <div>
-              <Label htmlFor="s-company">{t("set.company")}</Label>
-              <Input id="s-company" value={company} maxLength={80} required onChange={(e) => setCompany(e.target.value)} />
-            </div>
+          <div>
+            <Label htmlFor="s-name">{t("set.fullName")}</Label>
+            <Input id="s-name" value={name} maxLength={120} autoComplete="name" onChange={(e) => setName(e.target.value)} />
           </div>
           <Button type="submit" className="justify-self-start" disabled={saving}>
             {saving && <Loader2 className="animate-spin" />} {t("form.update")}
           </Button>
         </form>
+      </Section>
+
+      <Section title={t("set.password")}>
+        <PasswordForm />
       </Section>
 
       <Section title={t("set.preferences")}>
@@ -210,5 +207,54 @@ export function SettingsForms({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function PasswordForm() {
+  const { t } = useI18n();
+  const [pw, setPw] = React.useState("");
+  const [confirm, setConfirm] = React.useState("");
+  const [pending, start] = React.useTransition();
+  const mismatch = confirm.length > 0 && pw !== confirm;
+  return (
+    <form
+      className="grid gap-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        start(async () => {
+          const r = await changePassword(pw, confirm);
+          if (r.ok) {
+            toast.success(t("set.passwordSaved"));
+            setPw("");
+            setConfirm("");
+          } else toast.error(r.error);
+        });
+      }}
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <Label htmlFor="s-pw">{t("set.newPassword")}</Label>
+          <Input id="s-pw" type="password" autoComplete="new-password" minLength={8} maxLength={72} required value={pw} onChange={(e) => setPw(e.target.value)} />
+        </div>
+        <div>
+          <Label htmlFor="s-pw2">{t("set.confirmPassword")}</Label>
+          <Input
+            id="s-pw2"
+            type="password"
+            autoComplete="new-password"
+            minLength={8}
+            maxLength={72}
+            required
+            value={confirm}
+            aria-invalid={mismatch}
+            onChange={(e) => setConfirm(e.target.value)}
+          />
+          {mismatch && <p className="mt-1 text-xs text-warning">{t("set.passwordMismatch")}</p>}
+        </div>
+      </div>
+      <Button type="submit" className="justify-self-start" disabled={pending || mismatch}>
+        {pending && <Loader2 className="animate-spin" />} {t("set.password")}
+      </Button>
+    </form>
   );
 }

@@ -2,15 +2,16 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "KiraGo — Expense Tracker",
-    short_name: "KiraGo",
-    description: "Snap it. Say it. Track it.",
+    name: "BukuTigaLima — Dulu Buku, Sekarang Digital",
+    short_name: "BukuTigaLima",
+    description: "Sebut harga, invois, resit dan perbelanjaan harian dalam satu aplikasi.",
+    lang: "ms",
     start_url: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#f6f5f1",
-    theme_color: "#1f5c43",
-    categories: ["finance", "productivity"],
+    background_color: "#faf8f4",
+    theme_color: "#17324d",
+    categories: ["business", "finance", "productivity"],
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
       { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
@@ -18,9 +19,9 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: "/icons/icon.svg", sizes: "any", type: "image/svg+xml" },
     ],
     shortcuts: [
-      { name: "Scan receipt", url: "/add/scan" },
-      { name: "Voice expense", url: "/add/voice" },
-      { name: "Manual expense", url: "/add/manual" },
+      { name: "Scan Resit", url: "/add/scan" },
+      { name: "Rekod Suara", url: "/add/voice" },
+      { name: "Tambah Perbelanjaan", url: "/add/manual" },
     ],
   };
 }

@@ -39,14 +39,14 @@ describe("parseVoiceExpenses — spec examples", () => {
   it("Example 2: company packaging today", () => {
     const [e] = parseVoiceExpenses("Company beli packaging RM240 hari ini.", { today });
     expect(e.amountCents).toBe(24000);
-    expect(e.categoryName).toBe("Packaging");
+    expect(e.categoryName).toBe("Supplier Purchases");
     expect(e.workspace).toBe("company");
     expect(e.date).toBe(today);
   });
   it("Example 3: mixed language number words", () => {
     const [e] = parseVoiceExpenses("Petrol fifty ringgit untuk personal", { today });
     expect(e.amountCents).toBe(5000);
-    expect(e.categoryName).toBe("Transport");
+    expect(e.categoryName).toBe("Fuel");
     expect(e.workspace).toBe("personal");
     expect(e.description).toBe("Petrol");
   });
@@ -57,13 +57,13 @@ describe("parseVoiceExpenses — more cases", () => {
     const list = parseVoiceExpenses("Semalam makan tengahari RM15 dan isi minyak RM50", { today, defaultWorkspace: "personal" });
     expect(list).toHaveLength(2);
     expect(list[0]).toMatchObject({ amountCents: 1500, categoryName: "Food & Drinks", date: "2026-11-13" });
-    expect(list[1]).toMatchObject({ amountCents: 5000, categoryName: "Transport", date: "2026-11-13" });
+    expect(list[1]).toMatchObject({ amountCents: 5000, categoryName: "Fuel", date: "2026-11-13" });
   });
   it("context in a later expense does not leak backwards", () => {
     const list = parseVoiceExpenses("Semalam beli barang dapur RM85 dekat Lotus dan petrol fifty ringgit untuk personal", { today });
     expect(list).toHaveLength(2);
     expect(list[0]).toMatchObject({ amountCents: 8500, workspace: null, date: "2026-11-13", description: "Groceries at Lotus" });
-    expect(list[1]).toMatchObject({ amountCents: 5000, workspace: "personal", date: "2026-11-13", categoryName: "Transport" });
+    expect(list[1]).toMatchObject({ amountCents: 5000, workspace: "personal", date: "2026-11-13", categoryName: "Fuel" });
   });
   it("per-expense dates", () => {
     const list = parseVoiceExpenses("kopi RM5 hari ini dan parking RM3 semalam", { today, defaultWorkspace: "personal" });
@@ -98,7 +98,37 @@ describe("parseVoiceExpenses — more cases", () => {
   it("company spoken in Malay", () => {
     const [e] = parseVoiceExpenses("bayar pos laju RM18 untuk syarikat", { today });
     expect(e.workspace).toBe("company");
-    expect(e.categoryName).toBe("Shipping");
+    // Courier is not a default business category; the user picks or creates one.
+    expect(e.categoryName).toBe("Other");
+  });
+});
+
+describe("parseVoiceExpenses — BukuTigaLima spec examples", () => {
+  it("lunch today", () => {
+    const [e] = parseVoiceExpenses("Saya beli makan tengah hari RM15 hari ini.", { today });
+    expect(e.amountCents).toBe(1500);
+    expect(e.date).toBe(today);
+    expect(e.categoryName).toBe("Food & Drinks");
+  });
+  it("Facebook ads for the business", () => {
+    const [e] = parseVoiceExpenses("Bayar iklan Facebook RM200 untuk bisnes.", { today });
+    expect(e.amountCents).toBe(20000);
+    expect(e.workspace).toBe("company");
+    expect(e.categoryName).toBe("Marketing");
+  });
+  it("fuel yesterday", () => {
+    const [e] = parseVoiceExpenses("Semalam isi minyak RM70.", { today, defaultWorkspace: "personal" });
+    expect(e.amountCents).toBe(7000);
+    expect(e.date).toBe("2026-11-13");
+    expect(e.categoryName).toBe("Fuel");
+    expect(e.description).toBe("Petrol");
+  });
+  it("office supplies yesterday (test case 11)", () => {
+    const [e] = parseVoiceExpenses("Semalam beli barang pejabat RM35.", { today });
+    expect(e.amountCents).toBe(3500);
+    expect(e.date).toBe("2026-11-13");
+    expect(e.workspace).toBe("company");
+    expect(e.categoryName).toBe("Office Supplies");
   });
 });
 

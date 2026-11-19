@@ -1,4 +1,4 @@
-# KiraGo — handoff notes (start here)
+# BukuTigaLima (formerly KiraGo) — handoff notes (start here)
 
 Context for the next working session ("02 KiraGo Update"). No secrets in this file.
 
@@ -11,6 +11,7 @@ Context for the next working session ("02 KiraGo Update"). No secrets in this fi
   Duplicate project **application-testing-9sco** is unused — owner may delete it.
 - Supabase (production): project **kirago-sg**, ref `fxgtvtlkxkplgobbbjat`, region ap-southeast-1 (Singapore), Free plan.
   Migrations 0001–0004 applied manually via SQL and recorded in `supabase_migrations.schema_migrations`.
+  Migration 0005 (BukuTigaLima foundation) is NOT yet applied to kirago-sg — waiting for the owner's OK (it resets KiraGo test data).
   Auth URL config: Site URL `https://kiragolive.vercel.app`, redirect `https://kiragolive.vercel.app/**`.
 - Old Supabase project (Sydney) ref `uuunkzpsquzivbfqdkfa` was DELETED on 2026-11-16 (it only held test data). kirago-sg is
   the only Supabase project. Do not connect the Supabase↔Vercel or Supabase↔GitHub integrations; apply DB changes manually.
@@ -24,7 +25,8 @@ Context for the next working session ("02 KiraGo Update"). No secrets in this fi
 ## Applying DB changes
 Add a new file in `supabase/migrations/` AND apply it to kirago-sg (Supabase MCP `execute_sql`/SQL Editor), then insert
 its version into `supabase_migrations.schema_migrations`. Regenerate `supabase/setup.sql` if needed. Run Security
-Advisor afterwards (only expected warning: `ensure_my_workspaces` callable by authenticated — intentional).
+Advisor afterwards (expected warnings: `ensure_my_profile`, `create_organization`, `is_org_member`, `has_org_role`,
+`storage_org_access` callable by authenticated — intentional; each only acts for auth.uid()).
 
 ## What exists
 Next.js 16 (App Router, `src/proxy.ts`), React 19, Tailwind v4, shadcn-style UI, Recharts, Supabase (RLS everywhere,
@@ -39,7 +41,7 @@ private `receipts` bucket), Zod. EN + BM i18n (`src/lib/i18n`). PWA (`app/manife
 - See README.md for full architecture, env vars and deployment.
 
 ## Testing
-- `npm test` (Vitest, 76 tests), `npm run typecheck`, `npm run build`
+- `npm test` (Vitest, 80 tests), `npm run typecheck`, `npm run build`
 - `npm run test:db` — migrations + RLS on throwaway Postgres
 - `node e2e/smoke.mjs` — 17-step browser test against local app + local Supabase
   (`npx supabase start -x studio,logflare,vector,edge-runtime,imgproxy,supavisor,realtime,postgres-meta`;
@@ -54,9 +56,16 @@ private `receipts` bucket), Zod. EN + BM i18n (`src/lib/i18n`). PWA (`app/manife
 - Optional: AI keys for higher-accuracy receipts and real speech-to-text.
 - Leaked Password Protection is off in Supabase Auth.
 
-## Planned next: BukuTigaLima (not started)
-Owner shared "BukuTigaLima Master Development Prompt V4" (rebrand KiraGo → BukuTigaLima; add quotations, invoices,
-delivery orders, receipts, payments, customers, products; KiraGo stays as the expense module name). Decision 2026-11-19:
-option A — keep this repo, Vercel project and Supabase kirago-sg; rename them and clear test data when the build starts.
-Waiting on the owner's go-ahead plus decisions: dev branch + separate dev Supabase project, app URL/domain, email
-provider (Resend + domain), landing "Lihat Demo", tax handling, logo.
+## BukuTigaLima rebuild (in progress)
+Owner's spec: "BukuTigaLima Master Development Prompt V4". Decisions (2026-11-19): keep this repo/Vercel/kirago-sg and
+rename; clear KiraGo test data; app URL bukutigalima.vercel.app; email provider later (Resend + domain); no "Lihat Demo";
+tax = per item from catalog + configurable SST rate + extra charges (e.g. service charge); simple logo by us.
+Develop and test locally first (local Supabase via Docker + `npm run test:db` + `node e2e/smoke.mjs`), then apply to
+kirago-sg with the owner's OK. The owner's other Supabase project "mydevelopment" is NOT ours — never touch it.
+
+- Phase 1 (foundation) done in code: migration 0005 (organizations, members, settings, expense scopes, org-assets bucket,
+  create_organization RPC, ensure_my_profile replaces ensure_my_workspaces), onboarding wizard (/onboarding), new
+  sidebar/drawer shell, branding (navy #17324D / copper #B77945), settings for business/bank/documents/password.
+  Tests: 80 unit, RLS suite, 18/18 e2e steps against local Supabase.
+- Next: Phase 2 — customers, products & services, quotations, invoices (snapshots, atomic document numbers per org/year),
+  payments, outstanding invoices; then PDFs (Phase 3).

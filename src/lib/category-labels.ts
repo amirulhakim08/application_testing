@@ -28,6 +28,12 @@ const MS_LABELS: Record<string, string> = {
   rent: "Sewa",
   utilities: "Utiliti",
   "professional fees": "Yuran Profesional",
+  fuel: "Minyak",
+  "office supplies": "Barang Pejabat",
+  subscriptions: "Langganan",
+  equipment: "Peralatan",
+  maintenance: "Penyelenggaraan",
+  "supplier purchases": "Belian Pembekal",
 };
 
 export function categoryLabel(name: string, lang: Lang): string {

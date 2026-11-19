@@ -36,11 +36,11 @@ export async function POST(req: Request) {
   }
 
   // Load category names (both workspaces) to constrain the model's choice.
-  const { data: rows } = await supabase.from("expense_categories").select("name, workspaces(kind)").is("archived_at", null);
+  const { data: rows } = await supabase.from("expense_categories").select("name, scope").is("archived_at", null);
   const categories = { personal: [] as string[], company: [] as string[] };
   for (const r of rows ?? []) {
-    const ws = r.workspaces as unknown as { kind: "personal" | "company" } | null;
-    if (ws) categories[ws.kind].push(r.name as string);
+    const kind = r.scope === "business" ? "company" : "personal";
+    if (!categories[kind].includes(r.name as string)) categories[kind].push(r.name as string);
   }
 
   const started = Date.now();

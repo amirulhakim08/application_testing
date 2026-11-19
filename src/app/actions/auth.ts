@@ -1,6 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { LANG_COOKIE, normalizeLang } from "@/lib/i18n";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/env";
@@ -35,13 +37,11 @@ export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
       email,
       password,
       fullName: z.string().trim().max(120),
-      companyName: z.string().trim().max(80),
     })
     .safeParse({
       email: form.get("email"),
       password: form.get("password"),
       fullName: form.get("fullName") ?? "",
-      companyName: form.get("companyName") ?? "",
     });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const supabase = await createClient();
@@ -50,7 +50,8 @@ export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
     password: parsed.data.password,
     options: {
       emailRedirectTo: `${siteUrl()}/auth/confirm?next=/`,
-      data: { full_name: parsed.data.fullName, company_name: parsed.data.companyName },
+      // The language chosen on the sign-up screen becomes the account's language.
+      data: { full_name: parsed.data.fullName, language: normalizeLang((await cookies()).get(LANG_COOKIE)?.value) },
     },
   });
   if (error) return { error: error.code === "weak_password" ? "Please choose a stronger password." : "Could not create account." };

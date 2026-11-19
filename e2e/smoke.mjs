@@ -1,4 +1,4 @@
-// End-to-end smoke test against a running KiraGo + Supabase (see README "Testing").
+// End-to-end smoke test against a running BukuTigaLima + Supabase (see README "Testing").
 // Usage: BASE_URL=http://localhost:3000 SHOTS=./e2e/screenshots node e2e/smoke.mjs
 import { createRequire } from "node:module";
 const { chromium } = createRequire(import.meta.url)("playwright"); // uses a globally installed Playwright if not in devDependencies
@@ -38,19 +38,65 @@ const emailA = `aina+${stamp}@example.com`;
 let receiptPath;
 
 try {
-  await step("sign up creates Personal + Company workspaces", async () => {
+  await step("sign up → onboarding wizard creates the business → expense summary", async () => {
+    await ctxA.addCookies([{ name: "kg_lang", value: "en", url: BASE }]);
     await page.goto(`${BASE}/signup`);
     await page.fill("#fullName", "Aina Rahman");
     await page.fill("#email", emailA);
     await page.fill("#password", "correct-horse-battery");
-    await page.fill("#companyName", "Aina Bakery Sdn Bhd");
     await shot(page, "01-signup-mobile");
     await page.click("button[type=submit]");
+    await page.waitForURL(`${BASE}/onboarding`);
+    // Step 1: business information (name required)
+    await page.getByRole("heading", { name: "Business information" }).waitFor();
+    await page.fill("#biz-name", "Aina Bakery Sdn Bhd");
+    await page.fill("#biz-registrationNo", "202601012345");
+    await page.fill("#biz-address", "12 Jalan Bakery, 43000 Kajang, Selangor");
+    await page.fill("#biz-phone", "012-345 6789");
+    await shot(page, "01b-onboarding-business-mobile");
+    await page.getByRole("button", { name: "Continue" }).click();
+    // Step 2: bank (+ logo upload)
+    await page.getByRole("heading", { name: "Bank details" }).waitFor();
+    const logoPath = `/tmp/claude-0/logo-${stamp}.png`;
+    await sharp({ create: { width: 300, height: 300, channels: 3, background: "#17324D" } }).png().toFile(logoPath);
+    await page.locator("#biz-logo").setInputFiles(logoPath);
+    await page.locator('img[alt="Business logo"]').waitFor();
+    await page.fill("#bank-name", "Maybank");
+    await page.fill("#bank-no", "5123 4567 8901");
+    await page.getByRole("button", { name: "Continue" }).click();
+    // Step 3: document preferences — invalid prefix is rejected
+    await page.getByRole("heading", { name: "Document preferences" }).waitFor();
+    await page.fill("#doc-invoicePrefix", "IN V!");
+    await page.fill("#doc-tax", "8");
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByText("Use 1–8 capital letters or numbers").waitFor();
+    await page.fill("#doc-invoicePrefix", "INV");
+    await shot(page, "01c-onboarding-documents-mobile");
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("heading", { name: "Your business is ready!" }).waitFor();
+    await shot(page, "01d-onboarding-ready-mobile");
+    await page.getByRole("link", { name: "Expense Summary →" }).click();
     await page.waitForURL(`${BASE}/`);
-    await page.getByText("Aina Bakery Sdn Bhd").first().waitFor();
+    await page.locator('section[aria-label="Aina Bakery Sdn Bhd"]').waitFor();
     assert.equal(await cardTotal("Personal"), "RM0.00");
     assert.equal(await cardTotal("Aina Bakery Sdn Bhd"), "RM0.00");
     await shot(page, "02-dashboard-empty-mobile");
+    // Onboarding is done: visiting it again goes back to the app
+    await page.goto(`${BASE}/onboarding`);
+    await page.waitForURL(`${BASE}/`);
+  });
+
+  await step("settings: business profile, bank and document settings are saved", async () => {
+    await page.goto(`${BASE}/settings`);
+    assert.equal(await page.inputValue("#biz-name"), "Aina Bakery Sdn Bhd");
+    assert.equal(await page.inputValue("#bank-no"), "5123 4567 8901");
+    assert.equal(Number(await page.inputValue("#doc-tax")), 8);
+    await page.fill("#biz-email", "hello@ainabakery.my");
+    await page.locator("#syarikat").getByRole("button", { name: "Save" }).click();
+    await page.getByText("Saved").first().waitFor();
+    await page.reload();
+    assert.equal(await page.inputValue("#biz-email"), "hello@ainabakery.my");
+    await shot(page, "02b-settings-business-mobile");
   });
 
   await step("manual expense (personal) updates personal total only", async () => {
@@ -73,7 +119,7 @@ try {
     assert.equal(await page.getByRole("radio", { name: "Food & Drinks" }).getAttribute("aria-checked"), "true");
     await page.fill("#f-amount", "240");
     await page.getByRole("radio", { name: "Aina Bakery" }).click();
-    await page.getByRole("radio", { name: "Packaging" }).click();
+    await page.getByRole("radio", { name: "Office Supplies" }).click();
     await page.fill("#f-description", "Kotak kek");
     await page.getByRole("button", { name: "Save expense" }).click();
     await page.waitForURL(`${BASE}/`);
@@ -86,7 +132,7 @@ try {
     await page.goto(`${BASE}/add/manual`);
     await page.fill("#f-amount", "240");
     await page.getByRole("radio", { name: "Aina Bakery" }).click();
-    await page.getByRole("radio", { name: "Packaging" }).click();
+    await page.getByRole("radio", { name: "Office Supplies" }).click();
     await page.fill("#f-description", "Kotak kek");
     await page.getByRole("button", { name: "Save expense" }).click();
     await page.getByText("Possible duplicate").waitFor();
@@ -197,7 +243,7 @@ try {
     await page.waitForURL(/\/expenses\/[0-9a-f-]{36}$/);
     companyExpenseUrl = page.url();
     await page.locator('[role=radiogroup][aria-label="Workspace"]').getByRole("radio", { name: "Personal" }).click();
-    // Packaging doesn't exist in Personal -> mapped to Other
+    // Office Supplies does not exist in Personal -> mapped to Other
     assert.equal(await page.getByRole("radio", { name: "Other" }).getAttribute("aria-checked"), "true");
     await page.getByRole("button", { name: "Save changes" }).click();
     await page.waitForURL(`${BASE}/expenses`);
@@ -259,11 +305,21 @@ try {
   await step("isolation: another user cannot see or open user A's expense", async () => {
     const ctxB = await browser.newContext();
     const b = await ctxB.newPage();
+    await ctxB.addCookies([{ name: "kg_lang", value: "en", url: BASE }]);
     await b.goto(`${BASE}/signup`);
     await b.fill("#email", `badu+${stamp}@example.com`);
     await b.fill("#password", "another-strong-pass");
     await b.click("button[type=submit]");
-    await b.waitForURL(`${BASE}/`);
+    await b.waitForURL(`${BASE}/onboarding`);
+    await b.fill("#biz-name", "Badu Store");
+    await b.getByRole("button", { name: "Continue" }).click();
+    await b.getByRole("heading", { name: "Bank details" }).waitFor();
+    await b.getByRole("button", { name: "Skip for now" }).click();
+    await b.getByRole("heading", { name: "Document preferences" }).waitFor();
+    await b.getByRole("button", { name: "Skip for now" }).click();
+    await b.getByRole("heading", { name: "Your business is ready!" }).waitFor();
+    await b.goto(`${BASE}/`);
+    assert.equal(await b.getByText("Aina Bakery").count(), 0);
     assert.equal((await b.locator('section[aria-label="Personal"] div.tabular').first().innerText()).trim(), "RM0.00");
     await page.goto(`${BASE}/expenses`);
     await page.getByText("Nasi lemak").click();
@@ -292,7 +348,7 @@ try {
     const desk = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 2, storageState: await ctxA.storageState() });
     const d = await desk.newPage();
     await d.goto(`${BASE}/`);
-    await d.getByRole("link", { name: "Analytics" }).waitFor();
+    await d.getByRole("link", { name: "Expense Summary" }).first().waitFor();
     await shot(d, "11-dashboard-desktop");
     await d.goto(`${BASE}/reports`);
     await d.locator(".recharts-surface").first().waitFor();

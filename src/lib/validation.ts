@@ -46,6 +46,7 @@ const optText = (max: number) =>
     .transform((s) => (s ? s : null));
 
 export const ENTRY_METHODS = ["receipt_scan", "voice", "manual"] as const;
+export const PAYMENT_METHODS = ["cash", "debit_card", "credit_card", "online_banking", "ewallet", "other"] as const;
 
 export const expenseInputSchema = z.object({
   amount: moneyString,
@@ -65,6 +66,12 @@ export const expenseInputSchema = z.object({
   taxAmount: optionalMoney,
   discountAmount: optionalMoney,
   entryMethod: z.enum(ENTRY_METHODS),
+  paymentMethod: z
+    .enum(PAYMENT_METHODS)
+    .nullable()
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v ? v : null)),
   receiptFileId: uuid.nullable().optional().transform((v) => v ?? null),
   aiExtractionId: uuid.nullable().optional().transform((v) => v ?? null),
   items: z

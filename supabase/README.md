@@ -1,4 +1,4 @@
-# Supabase for KiraGo
+# Supabase for BukuTigaLima
 
 - `migrations/` — the database schema. With the Supabase GitHub integration
   ("Deploy to production" on this branch) these are applied automatically on every push.

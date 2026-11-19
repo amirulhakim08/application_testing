@@ -58,8 +58,9 @@ describe("image sniffing", () => {
 
 describe("categories", () => {
   it("suggests by keyword per workspace", () => {
-    expect(suggestCategoryName("Facebook ads boost", "company")).toBe("Advertising");
-    expect(suggestCategoryName("isi minyak", "company")).toBe("Travel");
+    expect(suggestCategoryName("Facebook ads boost", "company")).toBe("Marketing");
+    expect(suggestCategoryName("isi minyak", "company")).toBe("Fuel");
+    expect(suggestCategoryName("isi minyak", "personal")).toBe("Fuel");
     expect(suggestCategoryName("random thing", "personal")).toBeNull();
   });
   it("maps categories when moving workspaces", () => {

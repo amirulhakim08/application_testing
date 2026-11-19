@@ -4,25 +4,32 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getContext } from "@/lib/data";
+import { getBaseContext, getContext } from "@/lib/data";
 import { LANG_COOKIE } from "@/lib/i18n";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { RECEIPT_BUCKET, deleteReceiptImages } from "@/lib/receipt-storage";
+import { ORG_ASSETS_BUCKET } from "@/lib/org-assets";
 
 type Result = { ok: true } | { ok: false; error: string };
 
-export async function updateProfile(fullName: string, companyName: string): Promise<Result> {
-  const ctx = await getContext();
+export async function updateProfile(fullName: string): Promise<Result> {
+  const ctx = await getBaseContext();
   const n = z.string().trim().max(120).safeParse(fullName);
-  const c = z.string().trim().min(1, "Company name is required").max(80).safeParse(companyName);
   if (!n.success) return { ok: false, error: "Name is too long" };
-  if (!c.success) return { ok: false, error: c.error.issues[0].message };
-  const [p, w] = await Promise.all([
-    ctx.supabase.from("profiles").update({ full_name: n.data || null }).eq("id", ctx.user.id),
-    ctx.supabase.from("workspaces").update({ name: c.data }).eq("id", ctx.company.id),
-  ]);
-  if (p.error || w.error) return { ok: false, error: "Could not save" };
+  const { error } = await ctx.supabase.from("profiles").update({ full_name: n.data || null }).eq("id", ctx.user.id);
+  if (error) return { ok: false, error: "Could not save" };
   revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function changePassword(password: string, confirm: string): Promise<Result> {
+  const ctx = await getBaseContext();
+  const p = z.string().min(8, "Password must be at least 8 characters").max(72).safeParse(password);
+  if (!p.success) return { ok: false, error: p.error.issues[0].message };
+  if (password !== confirm) return { ok: false, error: "Passwords do not match" };
+  const { error } = await ctx.supabase.auth.updateUser({ password: p.data });
+  if (error) return { ok: false, error: error.code === "weak_password" ? "Please choose a stronger password." : error.code === "same_password" ? "Choose a password you have not used here." : "Could not change password" };
+  await ctx.supabase.from("audit_logs").insert({ user_id: ctx.user.id, action: "auth.password_change", entity: "user", entity_id: ctx.user.id });
   return { ok: true };
 }
 
@@ -80,6 +87,14 @@ export async function deleteAccount(confirmation: string): Promise<Result> {
     if (!objects?.length) break;
     await admin.storage.from(RECEIPT_BUCKET).remove(objects.map((o) => `${ctx.user.id}/${o.name}`));
     if (objects.length < 100) break;
+  }
+  // Businesses this user owns are deleted with the account (MVP: one owner per business).
+  const { data: owned } = await admin.from("organization_members").select("organization_id").eq("user_id", ctx.user.id).eq("role", "owner");
+  for (const o of owned ?? []) {
+    const orgId = o.organization_id as string;
+    const { data: assets } = await admin.storage.from(ORG_ASSETS_BUCKET).list(orgId, { limit: 100 });
+    if (assets?.length) await admin.storage.from(ORG_ASSETS_BUCKET).remove(assets.map((a) => `${orgId}/${a.name}`));
+    await admin.from("organizations").delete().eq("id", orgId);
   }
   const { error } = await admin.auth.admin.deleteUser(ctx.user.id);
   if (error) return { ok: false, error: "Could not delete account" };

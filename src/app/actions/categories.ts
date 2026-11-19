@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getContext } from "@/lib/data";
+import { bookColumns, getContext } from "@/lib/data";
 import { categoryNameSchema, uuid } from "@/lib/validation";
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -10,11 +10,19 @@ export async function createCategory(workspaceId: string, name: string): Promise
   const ctx = await getContext();
   const n = categoryNameSchema.safeParse(name);
   if (!n.success) return { ok: false, error: n.error.issues[0].message };
-  if (!ctx.workspaces.some((w) => w.id === workspaceId)) return { ok: false, error: "Invalid workspace" };
+  const book = bookColumns(ctx, workspaceId);
+  if (!book) return { ok: false, error: "Invalid workspace" };
   const maxOrder = Math.max(0, ...ctx.categories.filter((c) => c.workspaceId === workspaceId).map((c) => c.sortOrder));
   const { error } = await ctx.supabase
     .from("expense_categories")
-    .insert({ user_id: ctx.user.id, workspace_id: workspaceId, name: n.data, sort_order: maxOrder + 1, icon: "tag" });
+    .insert({
+      scope: book.scope,
+      user_id: book.scope === "personal" ? ctx.user.id : null,
+      organization_id: book.organization_id,
+      name: n.data,
+      sort_order: maxOrder + 1,
+      icon: "tag",
+    });
   if (error) return { ok: false, error: error.code === "23505" ? "A category with this name already exists" : "Could not create category" };
   revalidatePath("/", "layout");
   return { ok: true };

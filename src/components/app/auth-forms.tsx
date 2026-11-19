@@ -104,13 +104,6 @@ export function SignupForm() {
         <Input id="password" name="password" type="password" autoComplete="new-password" minLength={8} required />
         <p className="mt-1 text-xs text-muted-foreground">{t("auth.passwordHint")}</p>
       </div>
-      <div>
-        <Label htmlFor="companyName">
-          {t("auth.companyName")} <span className="text-[11px]">({t("form.optional")})</span>
-        </Label>
-        <Input id="companyName" name="companyName" maxLength={80} placeholder="Kedai Aina Enterprise" />
-        <p className="mt-1 text-xs text-muted-foreground">{t("auth.companyHint")}</p>
-      </div>
       <ErrorText state={state} />
       <Submit pending={pending}>{t("auth.signup")}</Submit>
       <p className="text-center text-sm text-muted-foreground">

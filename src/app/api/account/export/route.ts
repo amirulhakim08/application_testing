@@ -5,9 +5,9 @@ import { todayKL } from "@/lib/dates";
 export async function GET() {
   const ctx = await getContext();
   const s = ctx.supabase;
-  const [profile, workspaces, categories, expenses, items, receipts, prefs, audit] = await Promise.all([
+  const [profile, organizations, categories, expenses, items, receipts, prefs, audit] = await Promise.all([
     s.from("profiles").select("*").maybeSingle(),
-    s.from("workspaces").select("*"),
+    s.from("organizations").select("*"),
     s.from("expense_categories").select("*"),
     s.from("expenses").select("*, amount::text, tax_amount::text, discount_amount::text").limit(50000),
     s.from("expense_items").select("*, amount::text").limit(100000),
@@ -21,7 +21,7 @@ export async function GET() {
       account: { id: ctx.user.id, email: ctx.user.email },
       profile: profile.data,
       preferences: prefs.data,
-      workspaces: workspaces.data,
+      organizations: organizations.data,
       categories: categories.data,
       expenses: expenses.data,
       expense_items: items.data,
@@ -34,7 +34,7 @@ export async function GET() {
   return new Response(body, {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Content-Disposition": `attachment; filename="kirago-data-${todayKL()}.json"`,
+      "Content-Disposition": `attachment; filename="bukutigalima-data-${todayKL()}.json"`,
       "Cache-Control": "private, no-store",
     },
   });

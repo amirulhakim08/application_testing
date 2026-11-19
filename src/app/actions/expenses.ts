@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getContext, type AppContext } from "@/lib/data";
+import { bookColumns, getContext, scopeFilter, type AppContext } from "@/lib/data";
 import { centsToDecimalString } from "@/lib/money";
 import { expenseInputSchema, uuid, type ExpenseInput, type ExpenseParsed } from "@/lib/validation";
 import { lookupDuplicates } from "@/lib/duplicate-lookup";
@@ -42,9 +42,13 @@ async function validateRefs(ctx: AppContext, e: ExpenseParsed): Promise<string |
 }
 
 function toRow(ctx: AppContext, e: ExpenseParsed) {
+  const book = bookColumns(ctx, e.workspaceId);
+  if (!book) throw new Error("Invalid workspace");
   return {
     user_id: ctx.user.id,
-    workspace_id: e.workspaceId,
+    scope: book.scope,
+    organization_id: book.organization_id,
+    payment_method: e.paymentMethod ?? null,
     category_id: e.categoryId,
     amount: centsToDecimalString(e.amount),
     currency: e.currency,
@@ -116,7 +120,6 @@ export async function saveExpenses(inputs: ExpenseInput[]): Promise<SaveResult> 
   const items = parsed.flatMap((p, i) =>
     (p.items ?? []).map((it, pos) => ({
       expense_id: ids[i],
-      user_id: ctx.user.id,
       name: it.name,
       quantity: it.quantity,
       amount: it.amount && parseToCents(it.amount) !== null ? centsToDecimalString(parseToCents(it.amount)!) : null,
@@ -137,13 +140,25 @@ export async function saveExpenses(inputs: ExpenseInput[]): Promise<SaveResult> 
   const last = parsed[parsed.length - 1];
   const lastCats = { ...ctx.preferences.lastCategoryByWorkspace };
   if (last.categoryId) lastCats[last.workspaceId] = last.categoryId;
+  const lastBook = bookColumns(ctx, last.workspaceId);
   await ctx.supabase
     .from("user_preferences")
-    .update({ last_workspace_id: last.workspaceId, last_category_by_workspace: lastCats })
+    .update({
+      last_scope: lastBook?.scope ?? "personal",
+      last_organization_id: lastBook?.organization_id ?? null,
+      last_category_by_workspace: lastCats,
+    })
     .eq("user_id", ctx.user.id);
 
   await ctx.supabase.from("audit_logs").insert(
-    ids.map((id, i) => ({ user_id: ctx.user.id, action: "expense.create", entity: "expense", entity_id: id, metadata: { method: parsed[i].entryMethod } })),
+    ids.map((id, i) => ({
+      user_id: ctx.user.id,
+      organization_id: bookColumns(ctx, parsed[i].workspaceId)?.organization_id ?? null,
+      action: "expense.create",
+      entity: "expense",
+      entity_id: id,
+      metadata: { method: parsed[i].entryMethod },
+    })),
   );
 
   revalidatePath("/", "layout");
@@ -162,7 +177,13 @@ export async function updateExpense(id: string, input: ExpenseInput): Promise<Sa
   delete update.user_id;
   if (r.data.receiptFileId) update.receipt_file_id = r.data.receiptFileId;
 
-  const { data, error } = await ctx.supabase.from("expenses").update(update).eq("id", id).is("deleted_at", null).select("id");
+  const { data, error } = await ctx.supabase
+    .from("expenses")
+    .update(update)
+    .eq("id", id)
+    .is("deleted_at", null)
+    .or(scopeFilter(ctx))
+    .select("id");
   if (error || !data?.length) return { ok: false, error: "Could not update expense" };
   if (r.data.receiptFileId) await ctx.supabase.from("receipt_files").update({ attached_at: new Date().toISOString() }).eq("id", r.data.receiptFileId);
 
@@ -179,6 +200,7 @@ export async function deleteExpense(id: string): Promise<{ ok: boolean }> {
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", id)
     .is("deleted_at", null)
+    .or(scopeFilter(ctx))
     .select("id");
   if (error || !data?.length) return { ok: false };
   await ctx.supabase.from("audit_logs").insert({ user_id: ctx.user.id, action: "expense.delete", entity: "expense", entity_id: id });

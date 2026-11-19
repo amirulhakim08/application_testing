@@ -23,7 +23,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     >
       <ThemeSync theme={ctx.preferences.theme} />
       {cookieLang !== ctx.preferences.language && <LangSync lang={ctx.preferences.language} />}
-      <AppShell userLabel={ctx.user.email}>{children}</AppShell>
+      <AppShell userLabel={ctx.user.email} businessName={ctx.organization.name}>
+        {children}
+      </AppShell>
     </AppDataProvider>
   );
 }

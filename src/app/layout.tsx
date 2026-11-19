@@ -5,10 +5,11 @@ import { Providers } from "@/components/providers";
 import { LANG_COOKIE, normalizeLang } from "@/lib/i18n";
 
 export const metadata: Metadata = {
-  title: { default: "KiraGo", template: "%s · KiraGo" },
-  description: "Snap it. Say it. Track it. AI-powered daily expense tracker for Personal and Company spending.",
-  applicationName: "KiraGo",
-  appleWebApp: { capable: true, title: "KiraGo", statusBarStyle: "default" },
+  title: { default: "BukuTigaLima — Dulu Buku, Sekarang Digital", template: "%s · BukuTigaLima" },
+  description:
+    "Jana sebut harga, invois dan resit. Rekod perbelanjaan harian dengan mudah — semuanya dalam satu aplikasi untuk peniaga kecil Malaysia.",
+  applicationName: "BukuTigaLima",
+  appleWebApp: { capable: true, title: "BukuTigaLima", statusBarStyle: "default" },
   icons: { icon: "/icons/icon.svg", apple: "/icons/apple-touch-icon.png" },
   formatDetection: { telephone: false },
 };
@@ -18,8 +19,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f6f5f1" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b110e" },
+    { media: "(prefers-color-scheme: light)", color: "#faf8f4" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f151c" },
   ],
 };
 

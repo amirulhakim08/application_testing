@@ -8,7 +8,7 @@ export const LANG_COOKIE = "kg_lang";
 const dictionaries: Record<Lang, Record<MessageKey, string>> = { en, ms };
 
 export function normalizeLang(v: string | undefined | null): Lang {
-  return v === "ms" ? "ms" : "en";
+  return v === "en" ? "en" : "ms";
 }
 
 export type TFunction = (key: MessageKey, vars?: Record<string, string | number>) => string;

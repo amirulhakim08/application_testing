@@ -1,6 +1,6 @@
-// KiraGo service worker: caches the app shell/static assets only.
+// BukuTigaLima service worker: caches the app shell/static assets only.
 // Financial data (pages, API, Supabase) is always fetched from the network and never cached.
-const CACHE = "kirago-static-v2";
+const CACHE = "btl-static-v3";
 const PRECACHE = ["/offline", "/icons/icon.svg", "/icons/icon-192.png"];
 
 self.addEventListener("install", (event) => {

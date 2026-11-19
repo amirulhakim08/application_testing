@@ -1,14 +1,41 @@
-# KiraGo — AI-Powered Daily Expense Tracker
+# BukuTigaLima — Dulu Buku, Sekarang Digital.
 
-**Snap it. Say it. Track it.**
+**Live app:** https://bukutigalima.vercel.app (old alias: https://kiragolive.vercel.app)
 
-**Live app:** https://kiragolive.vercel.app
+BukuTigaLima is a responsive web app / PWA for Malaysian small businesses, freelancers and micro-SMEs. It combines
+**business documents** (quotations, invoices, delivery orders, receipts, payments, outstanding invoices) with
+**KiraGo**, a built-in daily expense module (receipt OCR, voice and manual entry) — under one login. Bahasa Melayu is the
+default language; English is available. Currency MYR, timezone Asia/Kuala_Lumpur.
 
-KiraGo is a mobile-first Progressive Web App for recording daily expenses in seconds: scan a receipt, say it out loud (Bahasa Melayu, English or a mix), or type it. Every expense belongs to exactly one of two separate workspaces, **Personal** or **Company**. The dashboard shows a total for each one, worked out from saved transactions.
+> Documents produced by BukuTigaLima are standard PDFs. They are **not** LHDN-validated e-Invoices and do not replace any
+> tax or statutory obligation of the business.
 
-> KiraGo tracks **spending only**. Totals are money spent, not account balances.
+### Delivery status
 
----
+| Phase | Scope | Status |
+|---|---|---|
+| 1. Foundation | Rebrand, organizations + members, onboarding wizard, Personal/Business expense scopes, RLS, settings (business, bank, documents, password) | ✅ Done |
+| 2. Business modules | Customers, products & services, quotations, invoices, conversion, payments, outstanding | ⏳ Next |
+| 3. Documents | PDF templates, delivery orders, receipts, print | ⏳ |
+| 4. KiraGo | Expense module on the new scopes (OCR, manual, duplicates) | ✅ carried over from KiraGo; refinements pending |
+| 5. Voice & dashboards | Business dashboard, reports, cash movement | ⏳ (voice + expense dashboard already work) |
+| 6. UX & PWA | Landing page, accessibility pass | ⏳ |
+| 7. Security & deployment | Full review, deployment verification | ⏳ |
+
+### Data model (Phase 1)
+
+* **Organizations** (`organizations`, `organization_members` with role owner/admin/staff, `organization_settings` for
+  template, document prefixes, payment terms, quotation validity and default tax). Created only through the
+  `create_organization()` RPC in onboarding (one business per owner in the MVP). Logos live in the private `org-assets`
+  bucket under `<organization_id>/…` and are served through short-lived signed URLs.
+* **Expenses have an explicit scope.** `scope = 'personal'` → belongs to one user (`user_id`), never visible to other
+  members of a business. `scope = 'business'` → belongs to `organization_id` and is visible to its members. Enforced by
+  CHECK constraints, a category-ownership trigger and RLS (see `supabase/tests/rls_test.sql`, which includes a staff
+  member who must not see the owner's personal expenses and a second business that must see nothing).
+* In the UI the two expense "books" keep KiraGo's workspace vocabulary: the personal book id is the user id, the business
+  book id is the organization id (`bookColumns()` in `src/lib/data.ts`).
+
+The KiraGo sections below still describe the expense module accurately unless noted.
 
 ## Architecture
 
@@ -32,7 +59,7 @@ Key design decisions:
 
 * **Money is exact.** The database stores amounts as `numeric(14,2)` and reads them as text (`amount::text`). TypeScript does all arithmetic in integer sen (`src/lib/money.ts`). There is no floating-point money anywhere.
 * **Totals are always derived.** Dashboard and report numbers are computed from saved, non-deleted rows on every request. No running totals or balances are stored. AI suggestions don't touch totals until the user confirms and saves.
-* **Workspaces are strictly separate.** Composite foreign keys mean an expense's category must belong to the expense's workspace, and the workspace must belong to the same user. Moving an expense between workspaces remaps its category (same name, or *Other*).
+* **Personal and Business are strictly separate.** A trigger ensures an expense's category has the same scope and owner as the expense. Moving an expense between Personal and Business remaps its category (same name, or *Other*).
 * **AI output is untrusted.** Model output is constrained by a schema, re-validated with Zod, and then sanitised (`src/lib/receipt-sanitize.ts`, `src/lib/voice-merge.ts`). Categories are limited to the user's own list. Prompts tell the model to ignore any instructions printed on receipts or spoken in transcripts.
 * **The final receipt total is checked by code, not just by the model.** `src/lib/receipt-total.ts` cross-checks the total the AI picked against two things:
   * cash tendered minus change
@@ -52,7 +79,7 @@ Migrations are in `supabase/migrations/`.
 | Table | Purpose |
 |---|---|
 | `profiles` | Display name |
-| `workspaces` | `personal` / `company` per user. The MVP allows one of each through partial unique indexes; drop `workspaces_one_company_mvp` to allow several companies. |
+| `organizations`, `organization_members`, `organization_settings` | The business, its members (owner/admin/staff) and document preferences. Replaced KiraGo's `workspaces` in migration 0005. |
 | `expense_categories` | Per-workspace categories (create / rename / archive) |
 | `expenses` | Each expense: UUID, user, workspace, category, `numeric` amount, currency, merchant, description, date/time, entry method (`receipt_scan`, `voice`, `manual`), receipt reference, timestamps, soft delete |
 | `expense_items` | Optional receipt line items |
@@ -62,7 +89,7 @@ Migrations are in `supabase/migrations/`.
 | `audit_logs` | Create/update/delete events (ids only, no financial content) |
 | `ai_usage_events` | AI usage monitoring and rate limiting |
 
-* A trigger on `auth.users` sets up each new account automatically: profile, preferences, both workspaces and the default categories. The company name comes from sign-up and can be changed in Settings.
+* A trigger on `auth.users` sets up each new account automatically: profile, preferences (language from the sign-up screen, BM by default) and personal categories. The business, its settings and business categories are created in the onboarding wizard.
 * RLS is on for every table. Policies also check that any receipt or extraction referenced by an expense belongs to the same user (foreign keys bypass RLS).
 * The storage bucket `receipts` is private. Objects live under `<user_id>/…` and are viewed only through signed URLs that expire after 5 minutes.
 
