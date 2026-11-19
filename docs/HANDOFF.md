@@ -93,5 +93,5 @@ kirago-sg with the owner's OK. The owner's other Supabase project "mydevelopment
   standalone payment + receipt via record_payment, no invoice; immutable (void the payment to correct). Pages
   /receipts/new (DocumentEditor kind="sale") and /receipts/[id] (id = payment id); itemised receipt PDF.
   (3) Day/night toggle (ThemeToggle) in sidebar + mobile header; saves preference.
-  Deploy order: apply 0008 to the DB BEFORE pushing the code (code embeds cash_sales in payment queries).
+  Code tolerates 0008 not yet applied (cash_sales looked up separately; direct sale shows a save error until then).
 - Next: Phase 4 (expense refinements), 5 (business dashboard/reports), 6 (landing), 7 (security review).
