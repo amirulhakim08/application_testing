@@ -12,6 +12,8 @@ Context for the next working session ("02 KiraGo Update"). No secrets in this fi
 - Supabase (production): project **kirago-sg**, ref `fxgtvtlkxkplgobbbjat`, region ap-southeast-1 (Singapore), Free plan.
   Migrations 0001–0004 applied manually via SQL and recorded in `supabase_migrations.schema_migrations`.
   Migration 0005 (BukuTigaLima foundation) applied to kirago-sg on 2026-11-19 with the owner's OK (KiraGo test data reset).
+  Migration 0006 (sales) applied to kirago-sg on 2026-11-19 with the owner's OK (additive only). Advisor: only the
+  intended SECURITY DEFINER entry points (each checks membership) + waktusolat findings + leaked-password (Pro plan).
   NOTE: kirago-sg is SHARED with another app of the owner ("Waktu Solat", schema `waktusolat`, buckets
   `waktusolat-*`, its own triggers on auth.users, migrations named waktusolat_*). Both apps share auth.users. Never
   modify the `waktusolat` schema; keep BukuTigaLima objects in `public` and avoid name clashes. Its advisor
@@ -30,7 +32,8 @@ Context for the next working session ("02 KiraGo Update"). No secrets in this fi
 Add a new file in `supabase/migrations/` AND apply it to kirago-sg (Supabase MCP `execute_sql`/SQL Editor), then insert
 its version into `supabase_migrations.schema_migrations`. Regenerate `supabase/setup.sql` if needed. Run Security
 Advisor afterwards (expected warnings: `ensure_my_profile`, `create_organization`, `is_org_member`, `has_org_role`,
-`storage_org_access` callable by authenticated — intentional; each only acts for auth.uid()).
+`storage_org_access` and the sales write functions callable by authenticated — intentional; each checks auth.uid()
+membership).
 
 ## What exists
 Next.js 16 (App Router, `src/proxy.ts`), React 19, Tailwind v4, shadcn-style UI, Recharts, Supabase (RLS everywhere,
