@@ -6,7 +6,14 @@ import { usePathname } from "next/navigation";
 import { Dialog as D } from "radix-ui";
 import {
   BarChart3,
+  BookOpenCheck,
   Building2,
+  FileText,
+  Package,
+  ReceiptText,
+  ScrollText,
+  Users,
+  Wallet,
   Camera,
   Home,
   LayoutGrid,
@@ -39,10 +46,27 @@ interface NavSection {
 }
 
 /**
- * Sidebar sections. Only modules that already work are listed; Jualan (sales documents), Pengurusan and
- * Laporan bisnes are added as each phase is delivered — no placeholder links.
+ * Sidebar sections. Only modules that already work are listed (no placeholder links); Delivery Orders and
+ * business reports are added in later phases.
  */
 const SECTIONS: NavSection[] = [
+  {
+    title: "nav.section.sales",
+    items: [
+      { href: "/quotations", icon: FileText, label: "nav.quotations" },
+      { href: "/invoices", icon: ReceiptText, label: "nav.invoices" },
+      { href: "/payments", icon: Wallet, label: "nav.payments" },
+      { href: "/receipts", icon: ScrollText, label: "nav.receipts" },
+      { href: "/outstanding", icon: BookOpenCheck, label: "nav.outstanding" },
+    ],
+  },
+  {
+    title: "nav.section.manage",
+    items: [
+      { href: "/customers", icon: Users, label: "nav.customers" },
+      { href: "/products", icon: Package, label: "nav.products" },
+    ],
+  },
   {
     title: "nav.section.kirago",
     items: [
@@ -63,9 +87,9 @@ const SECTIONS: NavSection[] = [
 
 const MOBILE = [
   { href: "/", icon: Home, label: "nav.home" },
-  { href: "/expenses", icon: ListOrdered, label: "nav.expenses" },
+  { href: "/invoices", icon: ReceiptText, label: "nav.invoices" },
   { href: "#add", icon: Plus, label: "nav.add" },
-  { href: "/reports", icon: BarChart3, label: "nav.reports" },
+  { href: "/expenses", icon: ListOrdered, label: "nav.expenses" },
   { href: "#menu", icon: Menu, label: "nav.menu" },
 ] as const;
 

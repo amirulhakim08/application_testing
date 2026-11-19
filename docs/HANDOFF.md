@@ -45,8 +45,9 @@ private `receipts` bucket), Zod. EN + BM i18n (`src/lib/i18n`). PWA (`app/manife
 - See README.md for full architecture, env vars and deployment.
 
 ## Testing
-- `npm test` (Vitest, 80 tests), `npm run typecheck`, `npm run build`
-- `npm run test:db` — migrations + RLS on throwaway Postgres
+- `npm test` (Vitest, 93 tests), `npm run typecheck`, `npm run build`
+- `npm run test:db` — migrations + RLS + sales tests + concurrent numbering on throwaway Postgres
+- `node e2e/sales.mjs` — sales flow (quotation → invoice → partial payments → outstanding, isolation)
 - `node e2e/smoke.mjs` — 17-step browser test against local app + local Supabase
   (`npx supabase start -x studio,logflare,vector,edge-runtime,imgproxy,supavisor,realtime,postgres-meta`;
   `.env.local` uses the local demo keys printed by `supabase start`). In cloud containers Docker may need `dockerd &`.
@@ -71,5 +72,8 @@ kirago-sg with the owner's OK. The owner's other Supabase project "mydevelopment
   create_organization RPC, ensure_my_profile replaces ensure_my_workspaces), onboarding wizard (/onboarding), new
   sidebar/drawer shell, branding (navy #17324D / copper #B77945), settings for business/bank/documents/password.
   Tests: 80 unit, RLS suite, 18/18 e2e steps against local Supabase.
-- Next: Phase 2 — customers, products & services, quotations, invoices (snapshots, atomic document numbers per org/year),
-  payments, outstanding invoices; then PDFs (Phase 3).
+- Phase 2 (sales) done in code: migration 0006 (customers, products, quotations, invoices, payments, receipts,
+  document_sequences, invoice_balances view, write RPCs), pages /customers /products /quotations /invoices /payments
+  /receipts /outstanding, WhatsApp reminder. Tests: 93 unit, RLS + sales SQL suites + 25-way concurrent numbering,
+  e2e smoke 18/18 + e2e/sales.mjs 12/12.
+- Next: Phase 3 — PDF templates (classic/modern/navy) for quotation/invoice/receipt, delivery orders, print.

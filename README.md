@@ -15,8 +15,8 @@ default language; English is available. Currency MYR, timezone Asia/Kuala_Lumpur
 | Phase | Scope | Status |
 |---|---|---|
 | 1. Foundation | Rebrand, organizations + members, onboarding wizard, Personal/Business expense scopes, RLS, settings (business, bank, documents, password) | ✅ Done |
-| 2. Business modules | Customers, products & services, quotations, invoices, conversion, payments, outstanding | ⏳ Next |
-| 3. Documents | PDF templates, delivery orders, receipts, print | ⏳ |
+| 2. Business modules | Customers, products & services, quotations, invoices, conversion, payments + receipts, outstanding invoices, WhatsApp reminders | ✅ Done |
+| 3. Documents | PDF templates (3 styles), delivery orders, receipt PDF, print | ⏳ Next |
 | 4. KiraGo | Expense module on the new scopes (OCR, manual, duplicates) | ✅ carried over from KiraGo; refinements pending |
 | 5. Voice & dashboards | Business dashboard, reports, cash movement | ⏳ (voice + expense dashboard already work) |
 | 6. UX & PWA | Landing page, accessibility pass | ⏳ |
@@ -34,6 +34,23 @@ default language; English is available. Currency MYR, timezone Asia/Kuala_Lumpur
   member who must not see the owner's personal expenses and a second business that must see nothing).
 * In the UI the two expense "books" keep KiraGo's workspace vocabulary: the personal book id is the user id, the business
   book id is the organization id (`bookColumns()` in `src/lib/data.ts`).
+
+### Sales model (Phase 2)
+
+* `customers`, `products_services` (catalog with default price and tax rate; documents copy description/price so
+  history never changes), `quotations` + `quotation_items`, `invoices` + `invoice_items`, `payments`, `receipts`,
+  `document_sequences`, view `invoice_balances`.
+* **Writes go through SECURITY DEFINER functions only** (`save_quotation`, `set_quotation_status`,
+  `convert_quotation_to_invoice`, `duplicate_quotation`, `save_invoice`, `issue_invoice`, `void_invoice`,
+  `duplicate_invoice`, `record_payment`, `void_payment`). Each checks membership, locks rows and allocates numbers
+  atomically (`QT-2026-0001`, `INV-…`, `RC-…`, per business and year; concurrency-tested).
+* **Money rules** (SQL authoritative, `src/lib/documents.ts` mirrors for live preview): line = round(qty × price, 2) −
+  line discount; tax per line = round(line × rate, 2); charges (e.g. service charge %) on subtotal − discounts, not
+  taxed; total = subtotal − discounts + charges + tax. Outstanding = total − valid payments, never stored.
+* Invoices: draft (no number) → issued (number + customer/company snapshot; immutable by trigger) → void (only after
+  its payments are voided). Payment status (unpaid/partial/paid) and overdue days are derived.
+* Payments are idempotent (client request key) and cannot exceed the balance; each payment gets exactly one receipt.
+  Standalone payments (walk-in sales) also get a receipt.
 
 The KiraGo sections below still describe the expense module accurately unless noted.
 
