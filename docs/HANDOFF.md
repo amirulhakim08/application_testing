@@ -53,3 +53,10 @@ private `receipts` bucket), Zod. EN + BM i18n (`src/lib/i18n`). PWA (`app/manife
 ## Open ideas / not done
 - Optional: AI keys for higher-accuracy receipts and real speech-to-text.
 - Leaked Password Protection is off in Supabase Auth.
+
+## Planned next: BukuTigaLima (not started)
+Owner shared "BukuTigaLima Master Development Prompt V4" (rebrand KiraGo → BukuTigaLima; add quotations, invoices,
+delivery orders, receipts, payments, customers, products; KiraGo stays as the expense module name). Decision 2026-11-19:
+option A — keep this repo, Vercel project and Supabase kirago-sg; rename them and clear test data when the build starts.
+Waiting on the owner's go-ahead plus decisions: dev branch + separate dev Supabase project, app URL/domain, email
+provider (Resend + domain), landing "Lihat Demo", tax handling, logo.
