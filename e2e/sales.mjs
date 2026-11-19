@@ -295,6 +295,48 @@ try {
     assert.equal(invoicesAfter, invoicesBefore, "no invoice created");
   });
 
+  await step("customer typed manually: one-off (not saved) and saved to the list", async () => {
+    // One-off customer on a quotation: printed on the document, customer list unchanged
+    await page.goto(`${BASE}/customers`);
+    const before = await page.locator('a[href^="/customers/"]').count();
+    await page.goto(`${BASE}/quotations/new`);
+    await page.getByRole("radio", { name: "Type manually" }).click();
+    await page.fill("#cm-name", "Puan Siti");
+    await page.fill("#cm-phone", "012-3456789");
+    await page.fill("#cm-address", "Lot 5, Bangi");
+    await page.getByLabel("Save to customer list").uncheck();
+    await addItem(page, 0, { description: "Kek coklat", qty: "1", price: "80" });
+    await page.getByRole("button", { name: "Save draft" }).click();
+    await page.waitForURL(/\/quotations\/[0-9a-f-]{36}$/);
+    await page.getByText("Puan Siti").first().waitFor();
+    await page.getByText("Lot 5, Bangi").waitFor();
+    // Editing the draft keeps the typed details
+    await page.getByRole("link", { name: "Edit" }).click();
+    assert.equal(await page.inputValue("#cm-name"), "Puan Siti");
+    // Convert → invoice → issue works without a listed customer
+    await page.goBack();
+    await page.getByRole("button", { name: "Convert to invoice" }).click();
+    await page.waitForURL(/\/invoices\/[0-9a-f-]{36}$/);
+    await page.getByRole("button", { name: "Issue invoice" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Issue invoice" }).click();
+    await page.getByRole("heading", { name: /INV-\d{9}/ }).waitFor();
+    await page.getByText("Puan Siti").first().waitFor();
+    await page.goto(`${BASE}/customers`);
+    assert.equal(await page.locator('a[href^="/customers/"]').count(), before, "one-off customer not added to the list");
+
+    // Saved to the list (default) from a direct sale receipt
+    await page.goto(`${BASE}/receipts/new`);
+    await page.getByRole("radio", { name: "Type manually" }).click();
+    await page.fill("#cm-name", "Encik Rahman");
+    await addItem(page, 0, { description: "Roti canai", qty: "3", price: "1.50", tax: "0" });
+    await page.getByRole("button", { name: "Issue paid receipt" }).click();
+    await page.waitForURL(/\/receipts\/[0-9a-f-]{36}$/);
+    await page.getByText("Encik Rahman").first().waitFor();
+    await page.goto(`${BASE}/customers`);
+    await page.getByRole("link", { name: /Encik Rahman/ }).waitFor();
+    assert.equal(await page.locator('a[href^="/customers/"]').count(), before + 1, "saved customer added once");
+  });
+
   await step("day/night toggle switches the theme and remembers it", async () => {
     await page.goto(`${BASE}/`);
     const before = await page.evaluate(() => document.documentElement.classList.contains("dark"));

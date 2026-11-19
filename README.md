@@ -67,6 +67,8 @@ default language; English is available. Currency MYR, timezone Asia/Kuala_Lumpur
 * Every document number is `PREFIX-YYMMDDNNN` (e.g. `QT-261023001`, `INV-261023001`, `DO-…`, `RC-…`), counted per
   business, type and day, prefix from Settings → Documents. Numbers issued before this change keep the old
   `PREFIX-YYYY-NNNN` form.
+* **Customer typed manually** on quotations, invoices and direct sale receipts: saved to the customer list (default) or
+  kept on that document only (stored as its customer snapshot).
 * **Direct sale receipt** (`/receipts/new`): items, SST and charges like an invoice, paid in full at once, no invoice
   created (`cash_sales`, `record_cash_sale`). Receipts cannot be edited; void the payment and issue a new one.
 

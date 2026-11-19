@@ -25,6 +25,16 @@ export default async function EditQuotationPage({ params }: { params: Promise<{ 
         {...data}
         initial={{
           customerId: q.customerId,
+          customerManual:
+            !q.customerId && q.customerSnapshot?.name
+              ? {
+                  name: q.customerSnapshot.name,
+                  companyName: q.customerSnapshot.company_name ?? "",
+                  phone: q.customerSnapshot.phone ?? "",
+                  email: q.customerSnapshot.email ?? "",
+                  billingAddress: q.customerSnapshot.billing_address ?? "",
+                }
+              : null,
           date: q.issueDate,
           secondDate: q.validUntil ?? "",
           title: q.title ?? "",

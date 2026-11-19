@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { Field } from "@/components/app/business-forms";
+import { Segmented } from "@/components/ui/segmented";
 import { CustomerDialog } from "./customer-form";
 import { formatMoney } from "@/lib/money";
 import { priceDocument, rm, type ChargeInput } from "@/lib/documents";
@@ -26,8 +27,17 @@ export interface EditorItem {
   discount: string;
   taxRate: string;
 }
+export interface ManualCustomer {
+  name: string;
+  companyName: string;
+  phone: string;
+  email: string;
+  billingAddress: string;
+}
 export interface EditorInitial {
   customerId: string | null;
+  /** Typed customer details on a draft (customer not in the list). */
+  customerManual?: Partial<ManualCustomer> | null;
   date: string;
   secondDate: string; // valid until (quotation) / due date (invoice)
   title?: string;
@@ -78,6 +88,12 @@ export function DocumentEditor({
   const router = useRouter();
   const [customers, setCustomers] = React.useState(initialCustomers);
   const [customerId, setCustomerId] = React.useState(initial.customerId ?? "");
+  const emptyManual: ManualCustomer = { name: "", companyName: "", phone: "", email: "", billingAddress: "" };
+  const [customerMode, setCustomerMode] = React.useState<"list" | "manual">(initial.customerManual?.name ? "manual" : "list");
+  const [manual, setManual] = React.useState<ManualCustomer>({ ...emptyManual, ...(initial.customerManual ?? {}) });
+  // Default: typed details are also added to the customer list. An existing draft with typed details keeps them on the document only.
+  const [saveCustomer, setSaveCustomer] = React.useState(!initial.customerManual?.name);
+  const setM = (patch: Partial<ManualCustomer>) => setManual((m) => ({ ...m, ...patch }));
   const [date, setDate] = React.useState(initial.date);
   const [second, setSecond] = React.useState(initial.secondDate);
   const [title, setTitle] = React.useState(initial.title ?? "");
@@ -124,8 +140,11 @@ export function DocumentEditor({
 
   const submit = () => {
     start(async () => {
+      const useManual = customerMode === "manual" && Boolean(manual.name.trim());
       const common = {
-        customerId: customerId || null,
+        customerId: customerMode === "list" ? customerId || null : null,
+        customerManual: useManual ? manual : null,
+        saveCustomer,
         notes,
         terms,
         items: items.map((i) => ({
@@ -178,6 +197,44 @@ export function DocumentEditor({
     >
       <div className="grid min-w-0 gap-5">
         <Card className="grid gap-4 p-5">
+          <Segmented
+            name={t("c.customer")}
+            size="sm"
+            value={customerMode}
+            onChange={setCustomerMode}
+            options={[
+              { value: "list", label: t("cus.fromList") },
+              { value: "manual", label: t("cus.typeManual") },
+            ]}
+          />
+          {customerMode === "manual" ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field id="cm-name" label={t("cus.name")} error={errors["customerManual.name"]}>
+                <Input id="cm-name" required={!isSale} maxLength={160} value={manual.name} onChange={(e) => setM({ name: e.target.value })} />
+              </Field>
+              <Field id="cm-company" label={t("cus.company")} optional>
+                <Input id="cm-company" maxLength={160} value={manual.companyName} onChange={(e) => setM({ companyName: e.target.value })} />
+              </Field>
+              <Field id="cm-phone" label={t("cus.phone")} optional>
+                <Input id="cm-phone" type="tel" maxLength={40} value={manual.phone} onChange={(e) => setM({ phone: e.target.value })} />
+              </Field>
+              <Field id="cm-email" label={t("cus.email")} optional error={errors["customerManual.email"]}>
+                <Input id="cm-email" type="email" maxLength={160} value={manual.email} onChange={(e) => setM({ email: e.target.value })} />
+              </Field>
+              <div className="sm:col-span-2">
+                <Field id="cm-address" label={t("cus.billing")} optional>
+                  <Textarea id="cm-address" rows={2} maxLength={500} value={manual.billingAddress} onChange={(e) => setM({ billingAddress: e.target.value })} />
+                </Field>
+              </div>
+              <label className="flex items-start gap-3 text-sm sm:col-span-2">
+                <input type="checkbox" className="mt-0.5 size-5 accent-[var(--primary)]" checked={saveCustomer} onChange={(e) => setSaveCustomer(e.target.checked)} />
+                <span>
+                  <span className="font-medium">{t("cus.saveToList")}</span>
+                  <span className="block text-xs text-muted-foreground">{t("cus.saveToListHint")}</span>
+                </span>
+              </label>
+            </div>
+          ) : (
           <div>
             <Field id="doc-customer" label={t("c.customer")} error={errors.customerId} optional={isSale}>
               <div className="flex gap-2">
@@ -204,6 +261,7 @@ export function DocumentEditor({
               }}
             />
           </div>
+          )}
           {isSale ? (
             <div className="grid gap-4 sm:grid-cols-3">
               <Field id="doc-date" label={t("pay.date")} error={errors.saleDate}>

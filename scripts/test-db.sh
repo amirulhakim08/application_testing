@@ -23,6 +23,7 @@ for f in "$ROOT"/supabase/migrations/*.sql; do echo "applying $(basename "$f")";
 "${PSQL[@]}" -f "$ROOT/supabase/tests/sales_test.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/tests/delivery_test.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/tests/cash_sale_test.sql"
+"${PSQL[@]}" -f "$ROOT/supabase/tests/manual_customer_test.sql"
 
 # Concurrent document numbering: 25 simultaneous sessions must get 25 unique, consecutive numbers.
 ORG_A=$("${PSQL[@]}" -tAc "select id from public.organizations where created_by = '11111111-1111-1111-1111-111111111111'")

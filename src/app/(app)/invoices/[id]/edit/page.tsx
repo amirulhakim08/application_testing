@@ -25,6 +25,16 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
         {...data}
         initial={{
           customerId: inv.customerId,
+          customerManual:
+            !inv.customerId && inv.customerSnapshot?.name
+              ? {
+                  name: inv.customerSnapshot.name,
+                  companyName: inv.customerSnapshot.company_name ?? "",
+                  phone: inv.customerSnapshot.phone ?? "",
+                  email: inv.customerSnapshot.email ?? "",
+                  billingAddress: inv.customerSnapshot.billing_address ?? "",
+                }
+              : null,
           date: inv.invoiceDate,
           secondDate: inv.dueDate ?? "",
           customerPo: inv.customerPo ?? "",

@@ -179,8 +179,46 @@ const chargeSchema = z.object({
   value: money,
 });
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-const docBase = {
+/** Customer details typed on the document instead of picked from the list. */
+const manualCustomerSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(160),
+  companyName: optText(160),
+  phone: optText(40),
+  email: optText(160).refine((s) => s === null || z.email().safeParse(s).success, "Invalid email"),
+  billingAddress: optText(500),
+});
+export type ManualCustomerInput = z.input<typeof manualCustomerSchema>;
+const customerFields = {
   customerId: uuid.nullable().optional(),
+  customerManual: manualCustomerSchema.nullable().optional(),
+  /** With customerManual: also add the details to the customer list (default) or keep them on this document only. */
+  saveCustomer: z.boolean().optional(),
+};
+
+/**
+ * Resolves the document's customer: a listed customer id, or typed details. Typed details are either saved as a new
+ * customer (returns its id) or passed through as customer_manual for the document only.
+ */
+async function resolveCustomer(
+  ctx: Awaited<ReturnType<typeof getContext>>,
+  d: { customerId?: string | null; customerManual?: z.output<typeof manualCustomerSchema> | null; saveCustomer?: boolean },
+): Promise<{ ok: true; customerId: string | null; manual: Record<string, string | null> | null } | { ok: false; error: string }> {
+  if (d.customerId || !d.customerManual) return { ok: true, customerId: d.customerId ?? null, manual: null };
+  const m = d.customerManual;
+  if (d.saveCustomer !== false) {
+    const { data, error } = await ctx.supabase
+      .from("customers")
+      .insert({ organization_id: ctx.company.id, created_by: ctx.user.id, name: m.name, company_name: m.companyName, phone: m.phone, email: m.email, billing_address: m.billingAddress })
+      .select("id")
+      .single();
+    if (error || !data) return { ok: false, error: friendly(error, ctx.preferences.language) };
+    return { ok: true, customerId: data.id as string, manual: null };
+  }
+  return { ok: true, customerId: null, manual: { name: m.name, company_name: m.companyName, phone: m.phone, email: m.email, billing_address: m.billingAddress } };
+}
+
+const docBase = {
+  ...customerFields,
   notes: optText(2000),
   terms: optText(4000),
   items: z.array(itemSchema).min(1, "Add at least one item").max(200),
@@ -220,11 +258,14 @@ export async function saveQuotation(id: string | null, input: QuotationInput): P
   if (!r.success) return { ok: false, error: friendly({ message: "invalid" }, ctx.preferences.language), fieldErrors: fieldErrors(r.error) };
   if (id && !uuid.safeParse(id).success) return { ok: false, error: "Invalid id" };
   const d = r.data;
+  const cust = await resolveCustomer(ctx, d);
+  if (!cust.ok) return { ok: false, error: cust.error };
   const { data, error } = await ctx.supabase.rpc("save_quotation", {
     p_org: ctx.company.id,
     p_id: id,
     p_payload: {
-      customer_id: d.customerId ?? null,
+      customer_id: cust.customerId,
+      customer_manual: cust.manual,
       issue_date: d.issueDate,
       valid_until: d.validUntil || null,
       title: d.title,
@@ -245,11 +286,14 @@ export async function saveInvoice(id: string | null, input: InvoiceInput): Promi
   if (!r.success) return { ok: false, error: friendly({ message: "invalid" }, ctx.preferences.language), fieldErrors: fieldErrors(r.error) };
   if (id && !uuid.safeParse(id).success) return { ok: false, error: "Invalid id" };
   const d = r.data;
+  const cust = await resolveCustomer(ctx, d);
+  if (!cust.ok) return { ok: false, error: cust.error };
   const { data, error } = await ctx.supabase.rpc("save_invoice", {
     p_org: ctx.company.id,
     p_id: id,
     p_payload: {
-      customer_id: d.customerId ?? null,
+      customer_id: cust.customerId,
+      customer_manual: cust.manual,
       invoice_date: d.invoiceDate,
       due_date: d.dueDate || null,
       customer_po: d.customerPo,
@@ -337,7 +381,7 @@ export async function recordPayment(input: PaymentInput): Promise<ActionResult<{
 }
 
 const cashSaleSchema = z.object({
-  customerId: uuid.nullable().optional(),
+  ...customerFields,
   saleDate: isoDate,
   method: z.enum(["cash", "bank_transfer", "duitnow", "card", "cheque", "ewallet", "other"]),
   reference: optText(120),
@@ -354,10 +398,15 @@ export async function recordCashSale(input: CashSaleInput): Promise<ActionResult
   const r = cashSaleSchema.safeParse(input);
   if (!r.success) return { ok: false, error: friendly({ message: "invalid" }, ctx.preferences.language), fieldErrors: fieldErrors(r.error) };
   const d = r.data;
+  // A retry of the same sale must not add the typed customer twice: only save it on the first attempt.
+  const { data: existing } = await ctx.supabase.from("payments").select("id").eq("organization_id", ctx.company.id).eq("idempotency_key", d.requestKey).maybeSingle();
+  const cust = existing ? { ok: true as const, customerId: d.customerId ?? null, manual: null } : await resolveCustomer(ctx, d);
+  if (!cust.ok) return { ok: false, error: cust.error };
   const { data, error } = await ctx.supabase.rpc("record_cash_sale", {
     p_org: ctx.company.id,
     p_payload: {
-      customer_id: d.customerId ?? null,
+      customer_id: cust.customerId,
+      customer_manual: cust.manual,
       sale_date: d.saleDate,
       method: d.method,
       reference: d.reference,

@@ -94,4 +94,9 @@ kirago-sg with the owner's OK. The owner's other Supabase project "mydevelopment
   /receipts/new (DocumentEditor kind="sale") and /receipts/[id] (id = payment id); itemised receipt PDF.
   (3) Day/night toggle (ThemeToggle) in sidebar + mobile header; saves preference.
   Code tolerates 0008 not yet applied (cash_sales looked up separately; direct sale shows a save error until then).
+- Migration 0009 (manual customer): editors have "Choose from list | Type manually". Typed details are either saved
+  as a new customer (default, server action inserts into customers first) or stored only on the document as
+  customer_snapshot with customer_id null (payload customer_manual, sanitised by manual_party()). Status change,
+  convert, duplicate, issue (invoice/DO), create DO and record_cash_sale accept a snapshot instead of customer_id.
+  Before 0009 is applied, unsaved typed details are silently dropped (document saves without customer).
 - Next: Phase 4 (expense refinements), 5 (business dashboard/reports), 6 (landing), 7 (security review).
