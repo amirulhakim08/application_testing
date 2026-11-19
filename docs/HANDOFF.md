@@ -11,7 +11,11 @@ Context for the next working session ("02 KiraGo Update"). No secrets in this fi
   Duplicate project **application-testing-9sco** is unused — owner may delete it.
 - Supabase (production): project **kirago-sg**, ref `fxgtvtlkxkplgobbbjat`, region ap-southeast-1 (Singapore), Free plan.
   Migrations 0001–0004 applied manually via SQL and recorded in `supabase_migrations.schema_migrations`.
-  Migration 0005 (BukuTigaLima foundation) is NOT yet applied to kirago-sg — waiting for the owner's OK (it resets KiraGo test data).
+  Migration 0005 (BukuTigaLima foundation) applied to kirago-sg on 2026-11-19 with the owner's OK (KiraGo test data reset).
+  NOTE: kirago-sg is SHARED with another app of the owner ("Waktu Solat", schema `waktusolat`, buckets
+  `waktusolat-*`, its own triggers on auth.users, migrations named waktusolat_*). Both apps share auth.users. Never
+  modify the `waktusolat` schema; keep BukuTigaLima objects in `public` and avoid name clashes. Its advisor
+  warnings are not ours.
   Auth URL config: Site URL `https://kiragolive.vercel.app`, redirect `https://kiragolive.vercel.app/**`.
 - Old Supabase project (Sydney) ref `uuunkzpsquzivbfqdkfa` was DELETED on 2026-11-16 (it only held test data). kirago-sg is
   the only Supabase project. Do not connect the Supabase↔Vercel or Supabase↔GitHub integrations; apply DB changes manually.
