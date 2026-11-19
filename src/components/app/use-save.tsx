@@ -16,7 +16,7 @@ import { formatDateLabel } from "@/lib/dates";
  * Save confirmed expenses; on a likely duplicate, show a warning and let the
  * user explicitly choose to save anyway.
  */
-export function useSaveExpenses({ redirectTo = "/" }: { redirectTo?: string } = {}) {
+export function useSaveExpenses({ redirectTo = "/expenses/summary" }: { redirectTo?: string } = {}) {
   const { t, lang } = useI18n();
   const router = useRouter();
   const [pending, setPending] = React.useState(false);

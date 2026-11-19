@@ -51,6 +51,10 @@ interface NavSection {
  */
 const SECTIONS: NavSection[] = [
   {
+    title: "nav.section.overview",
+    items: [{ href: "/", icon: Home, label: "home.title" }],
+  },
+  {
     title: "nav.section.sales",
     items: [
       { href: "/quotations", icon: FileText, label: "nav.quotations" },
@@ -68,9 +72,9 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "nav.section.kirago",
+    title: "nav.section.expenses",
     items: [
-      { href: "/", icon: LayoutGrid, label: "nav.expenseSummary" },
+      { href: "/expenses/summary", icon: LayoutGrid, label: "nav.expenseSummary" },
       { href: "/add/scan", icon: Camera, label: "add.scan" },
       { href: "/add/voice", icon: Mic, label: "add.voice" },
       { href: "/add/manual", icon: PenLine, label: "add.manual" },
@@ -93,8 +97,13 @@ const MOBILE = [
   { href: "#menu", icon: Menu, label: "nav.menu" },
 ] as const;
 
+const ALL_HREFS = SECTIONS.flatMap((sec) => sec.items.map((i) => i.href));
+
+/** Only the most specific matching menu item is active (e.g. /expenses/summary does not also light up /expenses). */
 function isActive(pathname: string, href: string) {
-  return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+  const matches = (h: string) => (h === "/" ? pathname === "/" : pathname === h || pathname.startsWith(`${h}/`));
+  if (!matches(href)) return false;
+  return !ALL_HREFS.some((other) => other !== href && other.length > href.length && other.startsWith(href) && matches(other));
 }
 
 function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {

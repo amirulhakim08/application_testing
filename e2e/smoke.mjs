@@ -75,8 +75,13 @@ try {
     await page.getByRole("button", { name: "Continue" }).click();
     await page.getByRole("heading", { name: "Your business is ready!" }).waitFor();
     await shot(page, "01d-onboarding-ready-mobile");
-    await page.getByRole("link", { name: "Expense Summary →" }).click();
+    await page.getByRole("link", { name: "Home →" }).click();
     await page.waitForURL(`${BASE}/`);
+    // Home is a hub of shortcuts
+    for (const name of ["Quotations", "Invoices", "Receipts", "My Expenses Summary"]) await page.locator(`section[aria-label="${name}"]`).waitFor();
+    await shot(page, "02a-home-mobile");
+    await page.locator('section[aria-label="My Expenses Summary"]').getByRole("link").first().click();
+    await page.waitForURL(`${BASE}/expenses/summary`);
     await page.locator('section[aria-label="Aina Bakery Sdn Bhd"]').waitFor();
     assert.equal(await cardTotal("Personal"), "RM0.00");
     assert.equal(await cardTotal("Aina Bakery Sdn Bhd"), "RM0.00");
@@ -93,7 +98,9 @@ try {
     assert.equal(Number(await page.inputValue("#doc-tax")), 8);
     await page.fill("#biz-email", "hello@ainabakery.my");
     await page.locator("#syarikat").getByRole("button", { name: "Save" }).click();
-    await page.getByText("Saved").first().waitFor();
+    const toast = page.locator("[data-sonner-toast]").first();
+    await toast.waitFor();
+    assert.equal((await toast.innerText()).trim(), "Saved");
     await page.reload();
     assert.equal(await page.inputValue("#biz-email"), "hello@ainabakery.my");
     await shot(page, "02b-settings-business-mobile");
@@ -107,7 +114,7 @@ try {
     await page.fill("#f-description", "Nasi lemak");
     await shot(page, "03-manual-mobile");
     await page.getByRole("button", { name: "Save expense" }).click();
-    await page.waitForURL(`${BASE}/`);
+    await page.waitForURL(`${BASE}/expenses/summary`);
     await page.getByText("Nasi lemak").first().waitFor();
     assert.equal(await cardTotal("Personal"), "RM12.50");
     assert.equal(await cardTotal("Aina Bakery Sdn Bhd"), "RM0.00");
@@ -122,7 +129,7 @@ try {
     await page.getByRole("radio", { name: "Office Supplies" }).click();
     await page.fill("#f-description", "Kotak kek");
     await page.getByRole("button", { name: "Save expense" }).click();
-    await page.waitForURL(`${BASE}/`);
+    await page.waitForURL(`${BASE}/expenses/summary`);
     await page.getByText("Kotak kek").first().waitFor();
     assert.equal(await cardTotal("Personal"), "RM12.50");
     assert.equal(await cardTotal("Aina Bakery Sdn Bhd"), "RM240.00");
@@ -138,7 +145,7 @@ try {
     await page.getByText("Possible duplicate").waitFor();
     await shot(page, "04-duplicate-warning-mobile");
     await page.getByRole("button", { name: "Go back" }).click();
-    await page.goto(`${BASE}/`);
+    await page.goto(`${BASE}/expenses/summary`);
     assert.equal(await cardTotal("Aina Bakery Sdn Bhd"), "RM240.00");
   });
 
@@ -157,7 +164,7 @@ try {
     await page.locator('[role=radiogroup][aria-label="Workspace"]').first().getByRole("radio", { name: "Personal" }).click();
     assert.equal(await page.locator('[role=radiogroup][aria-label="Category"]').first().getByRole("radio", { name: "Groceries" }).getAttribute("aria-checked"), "true");
     await page.getByRole("button", { name: "Save 2 expenses" }).click();
-    await page.waitForURL(`${BASE}/`);
+    await page.waitForURL(`${BASE}/expenses/summary`);
     await page.getByText("Groceries at Lotus").first().waitFor();
     assert.equal(await cardTotal("Personal"), "RM147.50");
   });
@@ -195,7 +202,7 @@ try {
     await page.fill("#scan-merchant", "Mydin");
     await shot(page, "06-scan-review-mobile");
     await page.getByRole("button", { name: "Save expense" }).click();
-    await page.waitForURL(`${BASE}/`);
+    await page.waitForURL(`${BASE}/expenses/summary`);
     assert.equal(await cardTotal("Personal"), "RM200.50");
   });
 
@@ -247,7 +254,7 @@ try {
     assert.equal(await page.getByRole("radio", { name: "Other" }).getAttribute("aria-checked"), "true");
     await page.getByRole("button", { name: "Save changes" }).click();
     await page.waitForURL(`${BASE}/expenses`);
-    await page.goto(`${BASE}/`);
+    await page.goto(`${BASE}/expenses/summary`);
     assert.equal(await cardTotal("Personal"), "RM440.50");
     assert.equal(await cardTotal("Aina Bakery Sdn Bhd"), "RM0.00");
   });
@@ -257,13 +264,13 @@ try {
     await page.getByRole("button", { name: "Delete" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
     await page.waitForURL(`${BASE}/expenses`);
-    await page.goto(`${BASE}/`);
+    await page.goto(`${BASE}/expenses/summary`);
     assert.equal(await cardTotal("Personal"), "RM200.50");
     await shot(page, "08-dashboard-mobile");
   });
 
   await step("period filters: Today excludes yesterday's voice expense", async () => {
-    await page.goto(`${BASE}/?period=today`);
+    await page.goto(`${BASE}/expenses/summary?period=today`);
     assert.equal(await cardTotal("Personal"), "RM65.50"); // 12.50 nasi lemak + 53.00 receipt
   });
 
@@ -293,7 +300,7 @@ try {
     await page.getByRole("heading", { name: "Tetapan" }).waitFor();
     await page.getByRole("radio", { name: "Gelap" }).click();
     await page.waitForFunction(() => document.documentElement.classList.contains("dark"));
-    await page.goto(`${BASE}/`);
+    await page.goto(`${BASE}/expenses/summary`);
     await page.getByText("Jumlah belanja").first().waitFor();
     await shot(page, "10-dashboard-dark-ms-mobile");
     await page.goto(`${BASE}/settings`);
@@ -318,7 +325,7 @@ try {
     await b.getByRole("heading", { name: "Document preferences" }).waitFor();
     await b.getByRole("button", { name: "Skip for now" }).click();
     await b.getByRole("heading", { name: "Your business is ready!" }).waitFor();
-    await b.goto(`${BASE}/`);
+    await b.goto(`${BASE}/expenses/summary`);
     assert.equal(await b.getByText("Aina Bakery").count(), 0);
     assert.equal((await b.locator('section[aria-label="Personal"] div.tabular').first().innerText()).trim(), "RM0.00");
     await page.goto(`${BASE}/expenses`);

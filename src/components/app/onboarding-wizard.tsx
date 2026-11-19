@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, PartyPopper, PenLine, Camera, Mic } from "lucide-react";
+import { Check, FilePlus2, Loader2, PartyPopper, PenLine } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/components/providers";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -170,22 +170,16 @@ export function OnboardingWizard({
               </span>
               <p className="text-[15px] text-muted-foreground">{t("onb.readyBody")}</p>
             </div>
-            <div className="rounded-2xl bg-muted/60 p-4 text-sm text-muted-foreground">{t("onb.firstQuoteSoon")}</div>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {(
-                [
-                  ["/add/manual", PenLine, "add.manual"],
-                  ["/add/scan", Camera, "add.scan"],
-                  ["/add/voice", Mic, "add.voice"],
-                ] as const
-              ).map(([href, Icon, label], i) => (
-                <Link key={href} href={href} className={cn(buttonVariants({ variant: i === 0 ? "default" : "outline", size: "lg" }), "w-full")}>
-                  <Icon /> {i === 0 ? t("onb.recordExpense") : t(label)}
-                </Link>
-              ))}
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Link href="/quotations/new" className={cn(buttonVariants({ size: "lg" }), "w-full")}>
+                <FilePlus2 /> {t("onb.firstQuote")}
+              </Link>
+              <Link href="/add/manual" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full")}>
+                <PenLine /> {t("onb.recordExpense")}
+              </Link>
             </div>
             <Link href="/" className="text-center text-sm font-medium text-primary hover:underline">
-              {t("nav.expenseSummary")} →
+              {t("home.title")} →
             </Link>
           </div>
         )}

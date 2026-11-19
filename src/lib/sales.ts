@@ -396,8 +396,10 @@ export async function getInvoice(ctx: AppContext, id: string): Promise<Invoice |
   };
 }
 
-export async function listPayments(ctx: AppContext, opts: { q?: string; customerId?: string; limit?: number } = {}) {
+export async function listPayments(ctx: AppContext, opts: { q?: string; customerId?: string; from?: ISODate; to?: ISODate; limit?: number } = {}) {
   let query = ctx.supabase.from("payments").select(PAYMENT_COLS).eq("organization_id", ctx.company.id);
+  if (opts.from) query = query.gte("payment_date", opts.from);
+  if (opts.to) query = query.lte("payment_date", opts.to);
   if (opts.customerId) query = query.eq("customer_id", opts.customerId);
   const term = searchTerm(opts.q);
   if (term) query = query.or(`reference.ilike.*${term}*,description.ilike.*${term}*`);

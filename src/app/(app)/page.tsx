@@ -1,114 +1,143 @@
 import Link from "next/link";
-import { Camera, ChevronRight, Mic, PenLine } from "lucide-react";
-import { getContext, getLedger, listExpenses, toRowData } from "@/lib/data";
+import { AlertTriangle, ArrowRight, Camera, FilePlus2, FileText, Plus, ReceiptText, ScrollText, Wallet, PieChart, type LucideIcon } from "lucide-react";
+import { getContext, getLedger } from "@/lib/data";
 import { getI18n } from "@/lib/i18n/server";
-import { resolvePeriod } from "@/lib/periods";
-import { addMonths, formatDateLabel, startOfMonth, todayKL } from "@/lib/dates";
-import { categoryBreakdown, monthlySeries, summarizeWorkspace } from "@/lib/aggregate";
-import { PeriodFilter } from "@/components/app/period-filter";
-import { WorkspaceCard } from "@/components/app/workspace-card";
-import { ExpenseRow } from "@/components/app/expense-row";
-import { CategoryBars } from "@/components/app/category-bars";
-import { MonthlyBars } from "@/components/app/charts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { endOfMonth, formatDateLabel, startOfMonth, todayKL } from "@/lib/dates";
+import { formatMoney } from "@/lib/money";
+import { listInvoices, listPayments, listQuotations } from "@/lib/sales";
+import { cn } from "@/lib/utils";
 
-export const metadata = { title: "Dashboard" };
+export const metadata = { title: "Utama" };
 
-export default async function Dashboard({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const sp = await searchParams;
+/** Home: shortcuts to the main areas, each with a live figure from saved records. */
+export default async function Home() {
   const ctx = await getContext();
   const { t, lang } = await getI18n();
   const today = todayKL();
-  const period = resolvePeriod(sp.period, { from: sp.from, to: sp.to, today });
+  const monthFrom = startOfMonth(today);
+  const monthTo = endOfMonth(today);
 
-  const trendFrom = startOfMonth(addMonths(startOfMonth(today), -5));
-  const from = [period.previous.from, trendFrom].sort()[0];
-  const to = [period.current.to, today].sort().at(-1)!;
-  const [ledger, recent] = await Promise.all([getLedger(ctx, from, to), listExpenses(ctx, {}, 6)]);
+  const [quotations, outstanding, payments, ledger] = await Promise.all([
+    listQuotations(ctx, { limit: 500 }),
+    listInvoices(ctx, { outstandingOnly: true, limit: 1000 }),
+    listPayments(ctx, { from: monthFrom, to: monthTo, limit: 1000 }),
+    getLedger(ctx, monthFrom, monthTo),
+  ]);
 
-  const personal = summarizeWorkspace(ledger, "personal", period.current, period.previous, today);
-  const company = summarizeWorkspace(ledger, "company", period.current, period.previous, today);
-  const catMap = new Map(ctx.categories.map((c) => [c.id, { name: c.label, icon: c.icon }]));
+  const openQuotes = quotations.filter((q) => q.displayStatus === "draft" || q.displayStatus === "sent").length;
+  const unpaid = outstanding.reduce((a, i) => a + i.outstanding, 0);
+  const overdue = outstanding.filter((i) => i.daysOverdue > 0);
+  const overdueAmt = overdue.reduce((a, i) => a + i.outstanding, 0);
+  const validPayments = payments.filter((p) => !p.voided);
+  const received = validPayments.reduce((a, p) => a + p.amount, 0);
+  const personal = ledger.filter((r) => r.workspaceKind === "personal").reduce((a, r) => a + r.amountCents, 0);
+  const business = ledger.filter((r) => r.workspaceKind === "company").reduce((a, r) => a + r.amountCents, 0);
   const firstName = ctx.user.fullName?.split(" ")[0];
+
+  const tiles: Array<{
+    href: string;
+    icon: LucideIcon;
+    title: string;
+    stat: string;
+    sub?: string;
+    tone: string;
+    action: { href: string; label: string; icon: LucideIcon };
+  }> = [
+    {
+      href: "/quotations",
+      icon: FileText,
+      title: t("nav.quotations"),
+      stat: t("home.quotations.stat", { n: openQuotes }),
+      tone: "bg-primary-soft text-primary",
+      action: { href: "/quotations/new", label: t("qt.new"), icon: Plus },
+    },
+    {
+      href: "/invoices",
+      icon: ReceiptText,
+      title: t("nav.invoices"),
+      stat: t("home.invoices.stat", { amt: formatMoney(unpaid) }),
+      tone: "bg-accent-soft text-accent",
+      action: { href: "/invoices/new", label: t("inv.new"), icon: Plus },
+    },
+    {
+      href: "/receipts",
+      icon: ScrollText,
+      title: t("nav.receipts"),
+      stat: t("home.receipts.stat", { n: validPayments.filter((p) => p.receiptNumber).length, amt: formatMoney(received) }),
+      tone: "bg-success-soft text-success",
+      action: { href: "/payments", label: t("pay.record"), icon: Wallet },
+    },
+    {
+      href: "/expenses/summary",
+      icon: PieChart,
+      title: t("home.expenses"),
+      stat: t("home.expenses.stat", { amt: formatMoney(personal + business) }),
+      sub: t("home.expenses.split", { p: formatMoney(personal), b: formatMoney(business) }),
+      tone: "bg-muted text-foreground",
+      action: { href: "/add/manual", label: t("add.manual"), icon: Plus },
+    },
+  ];
 
   return (
     <div className="animate-fade-up space-y-6">
-      <header className="flex items-end justify-between gap-4">
-        <div>
-          <p className="text-sm text-muted-foreground">{formatDateLabel(today, lang, { weekday: "long", day: "numeric", month: "long", year: undefined })}</p>
-          <h1 className="text-[28px] font-semibold tracking-tight">{t("dash.greeting", { name: firstName ? `, ${firstName}` : "" })}</h1>
-        </div>
+      <header>
+        <p className="text-sm text-muted-foreground">{formatDateLabel(today, lang, { weekday: "long", day: "numeric", month: "long", year: undefined })}</p>
+        <h1 className="text-[28px] font-semibold tracking-tight">{t("dash.greeting", { name: firstName ? `, ${firstName}` : "" })}</h1>
+        <p className="text-sm text-muted-foreground">{ctx.organization.name}</p>
       </header>
 
-      <PeriodFilter value={period.key} from={period.current.from} to={period.current.to} />
+      {overdue.length > 0 && (
+        <Link href="/outstanding" className="flex items-center gap-3 rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm hover:bg-destructive/10">
+          <AlertTriangle className="size-5 shrink-0 text-destructive" />
+          <span className="flex-1 font-medium">{t("home.overdue", { n: overdue.length, amt: formatMoney(overdueAmt) })}</span>
+          <span className="hidden text-destructive sm:inline">{t("home.overdueCta")}</span>
+          <ArrowRight className="size-4 text-destructive" />
+        </Link>
+      )}
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4">
-        <WorkspaceCard kind="personal" name={t("ws.personal")} summary={personal} t={t} />
-        <WorkspaceCard kind="company" name={ctx.company.name} summary={company} t={t} />
-      </div>
-      <p className="-mt-3 text-center text-[11px] text-muted-foreground">{t("dash.spendingNote")}</p>
-
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        {[
-          { href: "/add/scan", icon: Camera, label: t("add.scan") },
-          { href: "/add/voice", icon: Mic, label: t("add.voice") },
-          { href: "/add/manual", icon: PenLine, label: t("add.manual") },
-        ].map((a) => (
-          <Link
-            key={a.href}
-            href={a.href}
-            className="flex flex-col items-center gap-2 rounded-2xl border bg-card px-2 py-4 text-center text-[13px] font-medium shadow-sm transition-all hover:border-primary/40 active:scale-[0.98] sm:flex-row sm:justify-center sm:text-sm"
-          >
-            <span className="grid size-10 place-items-center rounded-full bg-primary-soft text-primary">
-              <a.icon className="size-5" />
-            </span>
-            {a.label}
-          </Link>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {tiles.map((tile) => (
+          <section key={tile.href} aria-label={tile.title} className="flex flex-col rounded-3xl border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors hover:border-primary/30">
+            <Link href={tile.href} className="flex flex-1 items-start gap-4 rounded-t-3xl p-5">
+              <span className={cn("grid size-12 shrink-0 place-items-center rounded-2xl", tile.tone)}>
+                <tile.icon className="size-6" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-lg font-semibold tracking-tight">{tile.title}</span>
+                <span className="tabular mt-0.5 block text-[15px] text-foreground">{tile.stat}</span>
+                {tile.sub && <span className="tabular block text-xs text-muted-foreground">{tile.sub}</span>}
+              </span>
+              <ArrowRight className="mt-1 size-5 shrink-0 text-muted-foreground" aria-hidden />
+            </Link>
+            <div className="border-t px-3 py-2">
+              <Link href={tile.action.href} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-medium text-primary hover:bg-muted">
+                <tile.action.icon className="size-4" /> {tile.action.label}
+              </Link>
+            </div>
+          </section>
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-5">
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>{t("dash.recent")}</CardTitle>
-            <Link href="/expenses" className="flex items-center text-sm font-medium text-primary">
-              {t("dash.viewAll")} <ChevronRight className="size-4" />
+      <section>
+        <h2 className="mb-2 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("home.quick")}</h2>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {[
+            { href: "/quotations/new", icon: FilePlus2, label: t("qt.new") },
+            { href: "/invoices/new", icon: ReceiptText, label: t("inv.new") },
+            { href: "/outstanding", icon: Wallet, label: t("nav.outstanding") },
+            { href: "/add/scan", icon: Camera, label: t("add.scan") },
+          ].map((a) => (
+            <Link
+              key={a.href}
+              href={a.href}
+              className="flex min-h-14 items-center gap-2.5 rounded-2xl border bg-card px-3.5 py-3 text-sm font-medium shadow-sm transition-all hover:border-primary/40 active:scale-[0.98]"
+            >
+              <a.icon className="size-[18px] shrink-0 text-primary" />
+              {a.label}
             </Link>
-          </CardHeader>
-          <CardContent className="px-2 pt-2 sm:px-3">
-            {recent.length === 0 ? (
-              <p className="px-3 py-8 text-center text-sm text-muted-foreground">{t("dash.empty")}</p>
-            ) : (
-              recent.map((e) => <ExpenseRow key={e.id} e={toRowData(ctx, e)} t={t} lang={lang} />)
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>{t("dash.breakdown")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <div className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("ws.personal")}</div>
-              <CategoryBars slices={categoryBreakdown(ledger, period.current, "personal")} categories={catMap} tone="personal" limit={4} empty={t("rep.noData")} />
-            </div>
-            <div>
-              <div className="mb-3 truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">{ctx.company.name}</div>
-              <CategoryBars slices={categoryBreakdown(ledger, period.current, "company")} categories={catMap} tone="company" limit={4} empty={t("rep.noData")} />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("dash.trend")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <MonthlyBars data={monthlySeries(ledger, today, 6)} />
-        </CardContent>
-      </Card>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
