@@ -344,7 +344,19 @@ export async function listInvoices(
 }
 
 const PAYMENT_COLS =
-  "id, invoice_id, customer_id, amount::text, payment_date, method, reference, description, voided_at, void_reason, receipts(id, number), invoices(number), customers(name), cash_sales(id)";
+  "id, invoice_id, customer_id, amount::text, payment_date, method, reference, description, voided_at, void_reason, receipts(id, number), invoices(number), customers(name)";
+/** Marks payments that are direct sales. Kept as a separate query so payment pages still work if it fails. */
+async function withCashSales(ctx: AppContext, list: Payment[]): Promise<Payment[]> {
+  if (list.length === 0) return list;
+  const ids = new Map<string, string>();
+  for (let i = 0; i < list.length; i += 150) {
+    const { data, error } = await ctx.supabase.from("cash_sales").select("id, payment_id").in("payment_id", list.slice(i, i + 150).map((p) => p.id));
+    if (error) return list;
+    for (const r of data ?? []) ids.set(r.payment_id as string, r.id as string);
+  }
+  return list.map((p) => ({ ...p, cashSaleId: ids.get(p.id) ?? null }));
+}
+
 function mapPayment(r: Row): Payment {
   const rc = (Array.isArray(r.receipts) ? r.receipts[0] : r.receipts) as { id?: string; number?: string } | null;
   const inv = r.invoices as { number?: string } | null;
@@ -364,7 +376,7 @@ function mapPayment(r: Row): Payment {
     voidReason: (r.void_reason as string) ?? null,
     receiptId: rc?.id ?? null,
     receiptNumber: rc?.number ?? null,
-    cashSaleId: ((Array.isArray(r.cash_sales) ? r.cash_sales[0] : r.cash_sales) as { id?: string } | null)?.id ?? null,
+    cashSaleId: null,
   };
 }
 
@@ -407,7 +419,7 @@ export async function listPayments(ctx: AppContext, opts: { q?: string; customer
   const term = searchTerm(opts.q);
   if (term) query = query.or(`reference.ilike.*${term}*,description.ilike.*${term}*`);
   const { data } = await query.order("payment_date", { ascending: false }).order("created_at", { ascending: false }).limit(opts.limit ?? 300);
-  return (data ?? []).map((r) => mapPayment(r as Row));
+  return withCashSales(ctx, (data ?? []).map((r) => mapPayment(r as Row)));
 }
 
 export async function customerSummary(ctx: AppContext, customerId: string) {
@@ -432,7 +444,8 @@ export async function getPayment(ctx: AppContext, id: string) {
   const { data } = await ctx.supabase.from("payments").select(`${PAYMENT_COLS}, notes, created_at`).eq("id", id).eq("organization_id", ctx.company.id).maybeSingle();
   if (!data) return null;
   const r = data as Row;
-  const payment = { ...mapPayment(r), notes: (r.notes as string) ?? null };
+  const [mapped] = await withCashSales(ctx, [mapPayment(r)]);
+  const payment = { ...mapped, notes: (r.notes as string) ?? null };
   return { ...payment, sale: payment.cashSaleId ? await getCashSale(ctx, payment.cashSaleId) : null };
 }
 
