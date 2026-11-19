@@ -79,4 +79,11 @@ kirago-sg with the owner's OK. The owner's other Supabase project "mydevelopment
   document_sequences, invoice_balances view, write RPCs), pages /customers /products /quotations /invoices /payments
   /receipts /outstanding, WhatsApp reminder. Tests: 93 unit, RLS + sales SQL suites + 25-way concurrent numbering,
   e2e smoke 18/18 + e2e/sales.mjs 12/12.
-- Next: Phase 3 — PDF templates (classic/modern/navy) for quotation/invoice/receipt, delivery orders, print.
+- Phase 3 (documents) done in code: migration 0007 (delivery_orders + items, RPCs save/create_from/issue/
+  mark_delivered/cancel; number DO-YYYY-NNNN given on issue), PDF engine with @react-pdf/renderer
+  (src/lib/pdf/*: 3 templates classic/modern/navy, bilingual labels, amount in words, DRAF/BATAL watermark, logo from
+  org-assets), route GET /api/documents/{quotation|invoice|receipt|delivery-order}/{id}/pdf?template=&download=1
+  (receipt id = payment id; org-scoped, 404 otherwise). Pages /delivery-orders (list/new/[id]/edit); PDF/print buttons
+  on quotation, invoice, receipt and payment lists. PDFs use built-in WinAnsi fonts: keep text Latin (use "-" not "−").
+  Tests: 98 unit, RLS + sales + delivery SQL suites, smoke 18/18, sales 14/14.
+- Next: Phase 4 (expense refinements), 5 (business dashboard/reports), 6 (landing), 7 (security review).

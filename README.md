@@ -16,7 +16,7 @@ default language; English is available. Currency MYR, timezone Asia/Kuala_Lumpur
 |---|---|---|
 | 1. Foundation | Rebrand, organizations + members, onboarding wizard, Personal/Business expense scopes, RLS, settings (business, bank, documents, password) | ✅ Done |
 | 2. Business modules | Customers, products & services, quotations, invoices, conversion, payments + receipts, outstanding invoices, WhatsApp reminders | ✅ Done |
-| 3. Documents | PDF templates (3 styles), delivery orders, receipt PDF, print | ⏳ Next |
+| 3. Documents | PDF templates (3 styles), delivery orders, receipt PDF, print | ✅ Done |
 | 4. KiraGo | Expense module on the new scopes (OCR, manual, duplicates) | ✅ carried over from KiraGo; refinements pending |
 | 5. Voice & dashboards | Business dashboard, reports, cash movement | ⏳ (voice + expense dashboard already work) |
 | 6. UX & PWA | Landing page, accessibility pass | ⏳ |
@@ -51,6 +51,16 @@ default language; English is available. Currency MYR, timezone Asia/Kuala_Lumpur
   its payments are voided). Payment status (unpaid/partial/paid) and overdue days are derived.
 * Payments are idempotent (client request key) and cannot exceed the balance; each payment gets exactly one receipt.
   Standalone payments (walk-in sales) also get a receipt.
+
+### Documents (Phase 3)
+
+* `delivery_orders` + `delivery_order_items` (quantities only, no prices). Draft → issued (gets `DO-YYYY-NNNN`) →
+  delivered (date, receiver, notes) or cancelled (delivered orders cannot be cancelled). Can be created from an issued
+  invoice or an accepted quotation (`create_delivery_order_from`).
+* PDFs are generated on the server (`src/lib/pdf/`, @react-pdf/renderer) at
+  `/api/documents/<quotation|invoice|receipt|delivery-order>/<id>/pdf`. `?template=classic|modern|navy` overrides the
+  business default; `?download=1` downloads instead of opening (print from the browser's PDF viewer). Issued invoices
+  print their company/customer snapshot. Responses are `Cache-Control: private, no-store`.
 
 The KiraGo sections below still describe the expense module accurately unless noted.
 

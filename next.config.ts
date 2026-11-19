@@ -10,7 +10,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  serverExternalPackages: ["sharp"],
+  serverExternalPackages: ["sharp", "@react-pdf/renderer"],
   experimental: {
     serverActions: { bodySizeLimit: "12mb" },
   },

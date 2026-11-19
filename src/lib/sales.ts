@@ -423,3 +423,11 @@ export async function customerSummary(ctx: AppContext, customerId: string) {
     outstanding: issued.reduce((a, i) => a + i.outstanding, 0),
   };
 }
+
+/** One payment with its receipt (for the receipt view/PDF). */
+export async function getPayment(ctx: AppContext, id: string) {
+  const { data } = await ctx.supabase.from("payments").select(`${PAYMENT_COLS}, notes, created_at`).eq("id", id).eq("organization_id", ctx.company.id).maybeSingle();
+  if (!data) return null;
+  const r = data as Row;
+  return { ...mapPayment(r), notes: (r.notes as string) ?? null };
+}

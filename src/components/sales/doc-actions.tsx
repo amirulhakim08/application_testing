@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Archive, ArchiveRestore, ArrowRightLeft, Ban, Check, Copy, Loader2, MessageCircle, Pencil, Send, Stamp, Trash2, Wallet, X } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowRightLeft, Ban, Check, Copy, Loader2, MessageCircle, PackageCheck, Pencil, Send, Stamp, Trash2, Truck, Wallet, X } from "lucide-react";
 import { useI18n } from "@/components/providers";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -14,7 +14,11 @@ import { formatMoney } from "@/lib/money";
 import { todayKL } from "@/lib/dates";
 import { reminderMessage, rm, whatsappLink, whatsappNumber } from "@/lib/documents";
 import {
+  cancelDeliveryOrder,
   convertQuotation,
+  createDeliveryOrderFrom,
+  issueDeliveryOrder,
+  markDelivered,
   duplicateInvoice,
   duplicateQuotation,
   issueInvoice,
@@ -406,5 +410,110 @@ export function ReminderButton({ number, outstandingCents, phone, businessName }
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+// ---------------------------------------------------------------- delivery orders
+
+export function CreateDeliveryOrderButton({ source, id }: { source: "invoice" | "quotation"; id: string }) {
+  const { t } = useI18n();
+  const { pending, run } = useRun();
+  return (
+    <Button variant="outline" disabled={pending} onClick={() => run(() => createDeliveryOrderFrom(source, id), { go: (d) => (d ? `/delivery-orders/${d}/edit` : null) })}>
+      <Truck /> {t("do.fromDoc")}
+    </Button>
+  );
+}
+
+export function DeliveryActions({ id, status }: { id: string; status: "draft" | "issued" | "delivered" | "cancelled" }) {
+  const { t } = useI18n();
+  const { pending, run } = useRun();
+  const [deliverOpen, setDeliverOpen] = React.useState(false);
+  const [cancelOpen, setCancelOpen] = React.useState(false);
+  const [date, setDate] = React.useState(todayKL());
+  const [receiver, setReceiver] = React.useState("");
+  const [notes, setNotes] = React.useState("");
+  const [reason, setReason] = React.useState("");
+  return (
+    <div className="flex flex-wrap gap-2">
+      {status === "draft" && (
+        <>
+          <Link href={`/delivery-orders/${id}/edit`} className={buttonVariants({ variant: "outline" })}>
+            <Pencil /> {t("c.edit")}
+          </Link>
+          <Button disabled={pending} onClick={() => run(() => issueDeliveryOrder(id), { success: t("common.saved") })}>
+            <Stamp /> {t("do.issue")}
+          </Button>
+        </>
+      )}
+      {status === "issued" && (
+        <Button disabled={pending} onClick={() => setDeliverOpen(true)}>
+          <PackageCheck /> {t("do.markDelivered")}
+        </Button>
+      )}
+      {(status === "draft" || status === "issued") && (
+        <Button variant="ghost" className="text-destructive" disabled={pending} onClick={() => setCancelOpen(true)}>
+          {status === "draft" ? <Trash2 /> : <Ban />} {status === "draft" ? t("do.discard") : t("do.cancel")}
+        </Button>
+      )}
+
+      <Dialog open={deliverOpen} onOpenChange={setDeliverOpen}>
+        <DialogContent title={t("do.markDelivered")}>
+          <form
+            className="grid gap-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setDeliverOpen(false);
+              run(() => markDelivered(id, date, receiver, notes), { success: t("common.saved") });
+            }}
+          >
+            <Field id="dl-date" label={t("do.deliveredDate")}>
+              <Input id="dl-date" type="date" required max={todayKL()} value={date} onChange={(e) => setDate(e.target.value)} />
+            </Field>
+            <Field id="dl-recv" label={t("do.receiver")} optional>
+              <Input id="dl-recv" maxLength={120} value={receiver} onChange={(e) => setReceiver(e.target.value)} />
+            </Field>
+            <Field id="dl-notes" label={t("do.deliveryNotes")} optional>
+              <Textarea id="dl-notes" rows={2} maxLength={1000} value={notes} onChange={(e) => setNotes(e.target.value)} />
+            </Field>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setDeliverOpen(false)}>
+                {t("c.cancel")}
+              </Button>
+              <Button type="submit" disabled={pending}>
+                <PackageCheck /> {t("do.markDelivered")}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <DialogContent title={status === "draft" ? t("do.discard") : t("do.cancel")}>
+          <form
+            className="grid gap-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setCancelOpen(false);
+              run(() => cancelDeliveryOrder(id, reason || "Draft discarded"), { success: t("common.saved"), go: () => (status === "draft" ? "/delivery-orders" : null) });
+            }}
+          >
+            {status !== "draft" && (
+              <Field id="dc-reason" label={t("c.reason")}>
+                <Input id="dc-reason" required maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />
+              </Field>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setCancelOpen(false)}>
+                {t("c.cancel")}
+              </Button>
+              <Button type="submit" variant="destructive" disabled={pending}>
+                {status === "draft" ? t("do.discard") : t("do.cancel")}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

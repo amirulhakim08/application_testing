@@ -26,3 +26,8 @@ export function InvoiceBadges({ inv, t }: { inv: Pick<InvoiceSummary, "status" |
     </span>
   );
 }
+
+const DO_VARIANT = { draft: "default", issued: "info", delivered: "success", cancelled: "danger" } as const;
+export function DeliveryBadge({ status, t }: { status: keyof typeof DO_VARIANT; t: TFunction }) {
+  return <Badge variant={DO_VARIANT[status]}>{t(`do.status.${status}`)}</Badge>;
+}

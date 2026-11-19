@@ -17,6 +17,7 @@ function friendly(err: { message?: string; code?: string } | null, lang: "ms" | 
   if (m.includes("at least one item")) return pick("Tambah sekurang-kurangnya satu item.", "Add at least one item.");
   if (m.includes("discount exceeds")) return pick("Diskaun melebihi jumlah item.", "A discount is larger than the item amount.");
   if (m.includes("void the payments")) return pick("Batalkan bayaran untuk invois ini dahulu.", "Void the payments on this invoice first.");
+  if (m.includes("delivered orders cannot")) return pick("Delivery order yang sudah dihantar tidak boleh dibatalkan.", "Delivered orders cannot be cancelled.");
   if (m.includes("only draft") || m.includes("cannot be edited") || m.includes("cannot be changed"))
     return pick("Dokumen ini tidak boleh diubah lagi.", "This document can no longer be changed.");
   if (m.includes("issued invoices")) return pick("Bayaran hanya boleh direkod pada invois yang sudah dikeluarkan.", "Payments can only be recorded on issued invoices.");
@@ -337,4 +338,59 @@ export async function recordPayment(input: PaymentInput): Promise<ActionResult<{
 
 export async function voidPayment(id: string, reason: string) {
   return rpcSimple<null>("void_payment", { p_payment_id: id, p_reason: reason.slice(0, 300) });
+}
+
+// ---------------------------------------------------------------- delivery orders
+
+const deliverySchema = z.object({
+  customerId: uuid.nullable().optional(),
+  issueDate: isoDate,
+  deliveryAddress: optText(500),
+  notes: optText(2000),
+  items: z
+    .array(
+      z.object({
+        description: z.string().trim().min(1, "Description is required").max(2000),
+        quantity: z
+          .string()
+          .trim()
+          .regex(/^\d{1,9}(\.\d{1,3})?$/, "Invalid quantity")
+          .refine((s) => Number(s) > 0, "Quantity must be more than zero"),
+        unit: optText(20),
+      }),
+    )
+    .min(1, "Add at least one item")
+    .max(200),
+});
+export type DeliveryInput = z.input<typeof deliverySchema>;
+
+export async function saveDeliveryOrder(id: string | null, input: DeliveryInput): Promise<ActionResult<{ id: string }>> {
+  const ctx = await getContext();
+  const r = deliverySchema.safeParse(input);
+  if (!r.success) return { ok: false, error: friendly({ message: "invalid" }, ctx.preferences.language), fieldErrors: fieldErrors(r.error) };
+  if (id && !uuid.safeParse(id).success) return { ok: false, error: "Invalid id" };
+  const d = r.data;
+  const { data, error } = await ctx.supabase.rpc("save_delivery_order", {
+    p_org: ctx.company.id,
+    p_id: id,
+    p_payload: { customer_id: d.customerId ?? null, issue_date: d.issueDate, delivery_address: d.deliveryAddress, notes: d.notes, items: d.items },
+  });
+  if (error || !data) return { ok: false, error: friendly(error, ctx.preferences.language) };
+  refresh();
+  return { ok: true, data: { id: data as string } };
+}
+
+export async function createDeliveryOrderFrom(source: "invoice" | "quotation", id: string) {
+  if (source !== "invoice" && source !== "quotation") return { ok: false, error: "Invalid source" } as const;
+  return rpcSimple<string>("create_delivery_order_from", { p_source: source, p_id: id });
+}
+export async function issueDeliveryOrder(id: string) {
+  return rpcSimple<string>("issue_delivery_order", { p_id: id });
+}
+export async function markDelivered(id: string, date: string, receivedBy: string, notes: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, error: "Invalid date" } as const;
+  return rpcSimple<null>("mark_delivery_delivered", { p_id: id, p_date: date, p_received_by: receivedBy.slice(0, 120), p_notes: notes.slice(0, 1000) });
+}
+export async function cancelDeliveryOrder(id: string, reason: string) {
+  return rpcSimple<null>("cancel_delivery_order", { p_id: id, p_reason: reason.slice(0, 300) });
 }

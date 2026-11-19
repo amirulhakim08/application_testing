@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Dialog as D } from "radix-ui";
 import {
+  Truck,
   BarChart3,
   BookOpenCheck,
   Building2,
@@ -59,6 +60,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { href: "/quotations", icon: FileText, label: "nav.quotations" },
       { href: "/invoices", icon: ReceiptText, label: "nav.invoices" },
+      { href: "/delivery-orders", icon: Truck, label: "nav.deliveryOrders" },
       { href: "/payments", icon: Wallet, label: "nav.payments" },
       { href: "/receipts", icon: ScrollText, label: "nav.receipts" },
       { href: "/outstanding", icon: BookOpenCheck, label: "nav.outstanding" },

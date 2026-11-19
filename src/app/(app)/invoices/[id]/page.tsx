@@ -9,7 +9,8 @@ import { uuid } from "@/lib/validation";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InvoiceBadges } from "@/components/sales/badges";
-import { InvoiceActions, ReminderButton, VoidPaymentButton } from "@/components/sales/doc-actions";
+import { CreateDeliveryOrderButton, InvoiceActions, ReminderButton, VoidPaymentButton } from "@/components/sales/doc-actions";
+import { PdfButtons } from "@/components/sales/pdf-buttons";
 import { DocumentView, dateOrNull } from "@/components/sales/document-view";
 
 export default async function InvoicePage({ params }: { params: Promise<{ id: string }> }) {
@@ -60,6 +61,8 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
         {inv.status === "issued" && inv.outstanding > 0 && inv.number && (
           <ReminderButton number={inv.number} outstandingCents={inv.outstanding} phone={inv.customerPhone} businessName={ctx.organization.name} />
         )}
+        {inv.status === "issued" && <CreateDeliveryOrderButton source="invoice" id={inv.id} />}
+        {inv.status !== "void" && <PdfButtons kind="invoice" id={inv.id} defaultTemplate={ctx.settings.documentTemplate} />}
       </div>
 
       <DocumentView
@@ -107,6 +110,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
                   </span>
                 </span>
                 <span className={`tabular font-semibold ${p.voided ? "line-through" : ""}`}>{formatMoney(p.amount)}</span>
+                {p.receiptNumber && <PdfButtons compact kind="receipt" id={p.id} label={p.receiptNumber} defaultTemplate={ctx.settings.documentTemplate} />}
                 {!p.voided && <VoidPaymentButton id={p.id} />}
               </div>
             ))}

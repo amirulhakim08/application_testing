@@ -5,7 +5,8 @@ import { getCustomer, getQuotation } from "@/lib/sales";
 import { uuid } from "@/lib/validation";
 import { PageHeader } from "@/components/app/page-header";
 import { QuotationBadge } from "@/components/sales/badges";
-import { QuotationActions } from "@/components/sales/doc-actions";
+import { CreateDeliveryOrderButton, QuotationActions } from "@/components/sales/doc-actions";
+import { PdfButtons } from "@/components/sales/pdf-buttons";
 import { DocumentView, dateOrNull } from "@/components/sales/document-view";
 
 export default async function QuotationPage({ params }: { params: Promise<{ id: string }> }) {
@@ -21,8 +22,10 @@ export default async function QuotationPage({ params }: { params: Promise<{ id: 
   return (
     <div className="animate-fade-up">
       <PageHeader title={q.number} subtitle={q.title ?? undefined} back="/quotations" action={<QuotationBadge status={q.displayStatus} t={t} />} />
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <QuotationActions id={q.id} status={q.status} convertedInvoiceId={q.convertedInvoiceId} />
+        {q.status === "accepted" && !q.convertedInvoiceId && <CreateDeliveryOrderButton source="quotation" id={q.id} />}
+        <PdfButtons kind="quotation" id={q.id} defaultTemplate={ctx.settings.documentTemplate} />
       </div>
       <DocumentView
         t={t}

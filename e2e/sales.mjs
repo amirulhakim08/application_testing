@@ -180,6 +180,57 @@ try {
     await page.getByText("Cheque bounced").waitFor();
   });
 
+  await step("Phase 3: PDFs for invoice, quotation and receipt in all templates", async () => {
+    const invId = bigInvoiceUrl.split("/").pop();
+    for (const tpl of ["classic", "modern", "navy"]) {
+      const r = await page.request.get(`${BASE}/api/documents/invoice/${invId}/pdf?template=${tpl}`);
+      assert.equal(r.status(), 200, `invoice pdf ${tpl}`);
+      assert.equal(r.headers()["content-type"], "application/pdf");
+      assert.ok((await r.body()).subarray(0, 5).toString() === "%PDF-", "starts with %PDF-");
+    }
+    const dl = await page.request.get(`${BASE}/api/documents/invoice/${invId}/pdf?download=1`);
+    assert.match(dl.headers()["content-disposition"] ?? "", /attachment; filename="[^"]*INV-\d{4}-0002\.pdf"/);
+    // The invoice page offers the PDF buttons
+    await page.getByRole("link", { name: "View PDF / Print" }).waitFor();
+    const rcLink = page.locator('a[href^="/api/documents/receipt/"]').first();
+    const rc = await page.request.get(`${BASE}${await rcLink.getAttribute("href")}`);
+    assert.equal(rc.status(), 200);
+    assert.ok((await rc.body()).subarray(0, 5).toString() === "%PDF-");
+    await page.goto(`${BASE}/quotations`);
+    await page.locator('a[href^="/quotations/"]').filter({ hasText: "QT-" }).first().click();
+    const qtLink = page.getByRole("link", { name: "View PDF / Print" });
+    const qt = await page.request.get(`${BASE}${await qtLink.getAttribute("href")}`);
+    assert.equal(qt.status(), 200);
+    // Not-found and bad kinds are refused
+    assert.equal((await page.request.get(`${BASE}/api/documents/invoice/00000000-0000-0000-0000-000000000000/pdf`)).status(), 404);
+    assert.equal((await page.request.get(`${BASE}/api/documents/bogus/${invId}/pdf`)).status(), 404);
+  });
+
+  await step("Phase 3: delivery order from invoice → issue → delivered", async () => {
+    await page.goto(bigInvoiceUrl);
+    await page.getByRole("button", { name: "Create Delivery Order" }).click();
+    await page.waitForURL(/\/delivery-orders\/[0-9a-f-]{36}\/edit$/);
+    assert.equal(await page.inputValue("[id^=do-desc-]"), "Projek pengubahsuaian");
+    await page.fill("[id^=do-qty-]", "2");
+    await page.getByRole("button", { name: "Save draft" }).click();
+    await page.waitForURL(/\/delivery-orders\/[0-9a-f-]{36}$/);
+    await page.getByText("Draft (number given on issue)").waitFor();
+    await page.getByRole("button", { name: "Issue delivery order" }).click();
+    await page.getByRole("heading", { name: `DO-${year}-0001` }).waitFor();
+    await page.getByRole("button", { name: "Mark delivered" }).click();
+    await page.fill("#dl-recv", "Pak Mat");
+    await page.getByRole("dialog").getByRole("button", { name: "Mark delivered" }).click();
+    await page.getByText("Pak Mat").waitFor();
+    await page.getByText("Delivered", { exact: true }).first().waitFor();
+    assert.equal(await page.getByRole("button", { name: "Cancel delivery order" }).count(), 0, "delivered orders cannot be cancelled");
+    const doPdf = await page.request.get(`${BASE}${await page.getByRole("link", { name: "View PDF / Print" }).getAttribute("href")}`);
+    assert.equal(doPdf.status(), 200);
+    if (SHOTS) fs.writeFileSync(`${SHOTS}/delivery-order.pdf`, await doPdf.body());
+    await shot(page, "s11-delivery-order");
+    await page.goto(`${BASE}/delivery-orders`);
+    await page.getByText(`DO-${year}-0001`).waitFor();
+  });
+
   await step("Test 6: overdue invoice appears in Outstanding with days overdue and reminder", async () => {
     await page.goto(`${BASE}/invoices/new`);
     await page.selectOption("#doc-customer", { label: "Encik Ali — Syarikat Maju Jaya" });
@@ -233,6 +284,8 @@ try {
     await other.addCookies([{ name: "kg_lang", value: "en", url: BASE }]);
     const b = await other.newPage();
     await signupWithBusiness(b, `other+${stamp}@example.com`, "Bistro Lain");
+    // PDFs of the first business are not served to the second one
+    assert.equal((await b.request.get(`${BASE}/api/documents/invoice/${bigInvoiceUrl.split("/").pop()}/pdf`)).status(), 404, "foreign invoice PDF refused");
     for (const url of [quotationUrl, invoiceUrl, bigInvoiceUrl]) {
       await b.goto(url);
       await b.getByRole("heading", { name: "Not found" }).waitFor();

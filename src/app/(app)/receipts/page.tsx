@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SearchBox } from "@/components/sales/list-tools";
+import { PdfButtons } from "@/components/sales/pdf-buttons";
 
 export const metadata = { title: "Resit" };
 
@@ -19,7 +20,7 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
   const receipts = (await listPayments(ctx, { q })).filter((p) => p.receiptNumber);
   return (
     <div className="animate-fade-up">
-      <PageHeader title={t("rc.title")} subtitle={t("rc.pdfSoon")} />
+      <PageHeader title={t("rc.title")} subtitle={t("rc.subtitle")} />
       <SearchBox />
       <Card className="mt-4 divide-y overflow-hidden">
         {receipts.length === 0 && <p className="p-10 text-center text-sm text-muted-foreground">{t("rc.empty")}</p>}
@@ -42,6 +43,7 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
               </span>
             </span>
             <span className={`tabular font-semibold ${p.voided ? "line-through" : ""}`}>{formatMoney(p.amount)}</span>
+            <PdfButtons compact kind="receipt" id={p.id} label={p.receiptNumber} defaultTemplate={ctx.settings.documentTemplate} />
           </div>
         ))}
       </Card>

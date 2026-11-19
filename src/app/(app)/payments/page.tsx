@@ -4,6 +4,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { listCustomers, listPayments } from "@/lib/sales";
 import { formatMoney } from "@/lib/money";
 import { formatDateLabel } from "@/lib/dates";
+import { PdfButtons } from "@/components/sales/pdf-buttons";
 import { PageHeader } from "@/components/app/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +49,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
               </span>
             </span>
             <span className={`tabular font-semibold ${p.voided ? "line-through" : ""}`}>{formatMoney(p.amount)}</span>
+            {p.receiptNumber && <PdfButtons compact kind="receipt" id={p.id} label={p.receiptNumber} defaultTemplate={ctx.settings.documentTemplate} />}
             {!p.voided && <VoidPaymentButton id={p.id} />}
           </div>
         ))}
