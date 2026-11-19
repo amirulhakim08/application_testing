@@ -65,7 +65,7 @@ export default async function Home() {
       title: t("nav.receipts"),
       stat: t("home.receipts.stat", { n: validPayments.filter((p) => p.receiptNumber).length, amt: formatMoney(received) }),
       tone: "bg-success-soft text-success",
-      action: { href: "/payments", label: t("pay.record"), icon: Wallet },
+      action: { href: "/receipts/new", label: t("sale.newShort"), icon: Plus },
     },
     {
       href: "/expenses/summary",
@@ -124,7 +124,7 @@ export default async function Home() {
           {[
             { href: "/quotations/new", icon: FilePlus2, label: t("qt.new") },
             { href: "/invoices/new", icon: ReceiptText, label: t("inv.new") },
-            { href: "/outstanding", icon: Wallet, label: t("nav.outstanding") },
+            { href: "/receipts/new", icon: ScrollText, label: t("sale.newShort") },
             { href: "/add/scan", icon: Camera, label: t("add.scan") },
           ].map((a) => (
             <Link

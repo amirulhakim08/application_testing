@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, PackagePlus, Plus, Trash2, UserPlus } from "lucide-react";
+import { Loader2, PackagePlus, Plus, ReceiptText, Trash2, UserPlus } from "lucide-react";
 import { useI18n } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -13,7 +13,8 @@ import { CustomerDialog } from "./customer-form";
 import { formatMoney } from "@/lib/money";
 import { priceDocument, rm, type ChargeInput } from "@/lib/documents";
 import { cn } from "@/lib/utils";
-import { saveInvoice, saveQuotation } from "@/app/actions/sales";
+import { todayKL } from "@/lib/dates";
+import { recordCashSale, saveInvoice, saveQuotation } from "@/app/actions/sales";
 
 export interface EditorItem {
   key: string;
@@ -51,6 +52,8 @@ export interface EditorProduct {
   taxRate: string;
 }
 
+const SALE_METHODS = ["cash", "duitnow", "ewallet", "card", "bank_transfer", "cheque", "other"] as const;
+
 let keySeq = 0;
 const newKey = () => `i${++keySeq}`;
 
@@ -63,7 +66,7 @@ export function DocumentEditor({
   defaultTaxRate,
   taxLabel,
 }: {
-  kind: "quotation" | "invoice";
+  kind: "quotation" | "invoice" | "sale";
   id: string | null;
   initial: EditorInitial;
   customers: EditorCustomer[];
@@ -89,6 +92,11 @@ export function DocumentEditor({
   const [newCustomerOpen, setNewCustomerOpen] = React.useState(false);
   const [pending, start] = React.useTransition();
   const [catalogPick, setCatalogPick] = React.useState("");
+  // Direct sale only: paid in full now. The request key is created once per form so a retry cannot record twice.
+  const [method, setMethod] = React.useState<(typeof SALE_METHODS)[number]>("cash");
+  const [reference, setReference] = React.useState("");
+  const [requestKey] = React.useState(() => crypto.randomUUID());
+  const isSale = kind === "sale";
 
   const totals = React.useMemo(() => priceDocument(items, charges), [items, charges]);
   const setItem = (key: string, patch: Partial<EditorItem>) => setItems((list) => list.map((i) => (i.key === key ? { ...i, ...patch } : i)));
@@ -131,6 +139,18 @@ export function DocumentEditor({
         })),
         charges: charges.map((c) => ({ ...c, value: c.value.trim() })),
       };
+      if (isSale) {
+        const r = await recordCashSale({ ...common, saleDate: date, method, reference, requestKey });
+        if (!r.ok) {
+          setErrors(r.fieldErrors ?? {});
+          toast.error(r.error);
+          return;
+        }
+        toast.success(t("pay.saved", { n: r.data!.receiptNumber }));
+        router.push(`/receipts/${r.data!.paymentId}`);
+        router.refresh();
+        return;
+      }
       const r =
         kind === "quotation"
           ? await saveQuotation(id, { ...common, issueDate: date, validUntil: second, title })
@@ -159,10 +179,10 @@ export function DocumentEditor({
       <div className="grid min-w-0 gap-5">
         <Card className="grid gap-4 p-5">
           <div>
-            <Field id="doc-customer" label={t("c.customer")} error={errors.customerId}>
+            <Field id="doc-customer" label={t("c.customer")} error={errors.customerId} optional={isSale}>
               <div className="flex gap-2">
                 <Select id="doc-customer" value={customerId} onChange={(e) => setCustomerId(e.target.value)} className="min-w-0 flex-1">
-                  <option value="">{t("cus.choose")}</option>
+                  <option value="">{isSale ? t("sale.walkIn") : t("cus.choose")}</option>
                   {customers.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -184,15 +204,35 @@ export function DocumentEditor({
               }}
             />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field id="doc-date" label={kind === "quotation" ? t("qt.issueDate") : t("inv.date")}>
-              <Input id="doc-date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
-            </Field>
-            <Field id="doc-second" label={kind === "quotation" ? t("qt.validUntil") : t("inv.due")} error={errors.validUntil ?? errors.dueDate}>
-              <Input id="doc-second" type="date" min={date} value={second} onChange={(e) => setSecond(e.target.value)} />
-            </Field>
-          </div>
-          {kind === "quotation" ? (
+          {isSale ? (
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field id="doc-date" label={t("pay.date")} error={errors.saleDate}>
+                <Input id="doc-date" type="date" required max={todayKL()} value={date} onChange={(e) => setDate(e.target.value)} />
+              </Field>
+              <Field id="sale-method" label={t("pay.method")}>
+                <Select id="sale-method" value={method} onChange={(e) => setMethod(e.target.value as (typeof SALE_METHODS)[number])}>
+                  {SALE_METHODS.map((m) => (
+                    <option key={m} value={m}>
+                      {t(`pay.m.${m}`)}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field id="sale-ref" label={t("pay.reference")}>
+                <Input id="sale-ref" maxLength={120} value={reference} onChange={(e) => setReference(e.target.value)} />
+              </Field>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field id="doc-date" label={kind === "quotation" ? t("qt.issueDate") : t("inv.date")}>
+                <Input id="doc-date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
+              </Field>
+              <Field id="doc-second" label={kind === "quotation" ? t("qt.validUntil") : t("inv.due")} error={errors.validUntil ?? errors.dueDate}>
+                <Input id="doc-second" type="date" min={date} value={second} onChange={(e) => setSecond(e.target.value)} />
+              </Field>
+            </div>
+          )}
+          {isSale ? null : kind === "quotation" ? (
             <Field id="doc-title" label={t("doc.title")} optional>
               <Input id="doc-title" maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} />
             </Field>
@@ -305,9 +345,11 @@ export function DocumentEditor({
           <Field id="doc-notes" label={t("c.notes")} optional>
             <Textarea id="doc-notes" rows={2} maxLength={2000} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </Field>
-          <Field id="doc-tnc" label={t("c.terms")} optional>
-            <Textarea id="doc-tnc" rows={3} maxLength={4000} value={terms} onChange={(e) => setTerms(e.target.value)} />
-          </Field>
+          {!isSale && (
+            <Field id="doc-tnc" label={t("c.terms")} optional>
+              <Textarea id="doc-tnc" rows={3} maxLength={4000} value={terms} onChange={(e) => setTerms(e.target.value)} />
+            </Field>
+          )}
         </Card>
       </div>
 
@@ -324,9 +366,10 @@ export function DocumentEditor({
         </div>
         {!totals.valid && <p className="text-xs text-warning">{t("doc.invalid")}</p>}
         <Button type="submit" size="lg" className="mt-3 w-full" disabled={pending}>
-          {pending && <Loader2 className="animate-spin" />}
-          {t("c.saveDraft")}
+          {pending ? <Loader2 className="animate-spin" /> : isSale ? <ReceiptText /> : null}
+          {isSale ? t("sale.issue") : t("c.saveDraft")}
         </Button>
+        {isSale && <p className="text-center text-xs text-muted-foreground">{t("sale.hint")}</p>}
         {kind === "invoice" && <p className="text-center text-xs text-muted-foreground">{t("inv.notEinvoice")}</p>}
       </Card>
     </form>

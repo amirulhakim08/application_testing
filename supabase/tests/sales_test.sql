@@ -6,7 +6,7 @@ set client_min_messages = warning;
 \o /dev/null
 select set_config('test.org_a', (select id::text from public.organizations where created_by = '11111111-1111-1111-1111-111111111111'), false);
 select set_config('test.org_b', (select id::text from public.organizations where created_by = '22222222-2222-2222-2222-222222222222'), false);
-select set_config('test.year', extract(year from public.today_kl())::text, false);
+select set_config('test.year', to_char(public.today_kl(), 'YYMMDD'), false);
 \o
 
 -- ---------------------------------------------------------------- user A
@@ -35,7 +35,7 @@ do $$
 declare q record;
 begin
   select * into q from public.quotations where id = current_setting('test.qt')::uuid;
-  assert q.number = 'QT-' || current_setting('test.year') || '-0001', 'quotation number ' || q.number;
+  assert q.number = 'QT-' || current_setting('test.year') || '001', 'quotation number ' || q.number;
   assert q.subtotal = 399.99, 'subtotal ' || q.subtotal;
   assert q.discount_total = 9.99, 'discount';
   assert q.charges_total = 39.00, 'service charge 10% of 390.00';
@@ -102,7 +102,7 @@ begin
   assert i.status = 'draft' and i.number is null, 'draft invoice without number';
   assert i.total = 453.00 and i.tax_total = 24.00 and i.charges_total = 39.00, 'totals copied';
   assert (select count(*) from public.invoice_items where invoice_id = i.id) = 2, 'items copied';
-  assert q.status = 'accepted' and q.total = 453.00 and q.number = 'QT-' || current_setting('test.year') || '-0001', 'quotation preserved';
+  assert q.status = 'accepted' and q.total = 453.00 and q.number = 'QT-' || current_setting('test.year') || '001', 'quotation preserved';
 end $$;
 
 -- Issue: number + snapshots, then immutable
@@ -113,7 +113,7 @@ do $$
 declare i record;
 begin
   select * into i from public.invoices where id = current_setting('test.inv')::uuid;
-  assert i.status = 'issued' and i.number = 'INV-' || current_setting('test.year') || '-0001', 'issued number ' || coalesce(i.number, 'null');
+  assert i.status = 'issued' and i.number = 'INV-' || current_setting('test.year') || '001', 'issued number ' || coalesce(i.number, 'null');
   assert i.customer_snapshot ->> 'name' = 'Encik Ali', 'customer snapshot';
   assert i.company_snapshot ->> 'bank_name' = 'Maybank', 'company snapshot with bank';
   assert public.issue_invoice(i.id) = i.number, 'issue is idempotent';
@@ -187,7 +187,7 @@ begin
   select * into b from public.invoice_balances where invoice_id = current_setting('test.inv5k')::uuid;
   assert b.outstanding = 0.00 and b.amount_paid = 5000.00, 'fully paid';
   assert (select count(distinct number) from public.receipts) = 2, 'separate receipt per payment';
-  assert (select min(number) from public.receipts) = 'RC-' || current_setting('test.year') || '-0001', 'receipt numbering';
+  assert (select min(number) from public.receipts) = 'RC-' || current_setting('test.year') || '001', 'receipt numbering';
   -- invoices with valid payments cannot be voided
   begin
     perform public.void_invoice(current_setting('test.inv5k')::uuid, 'mistake');
@@ -220,7 +220,7 @@ do $$ declare v uuid; begin
   assert (select status from public.invoices where id = v) = 'draft', 'duplicate is draft';
   assert (select total from public.invoices where id = v) = 453.00, 'duplicate total';
   v := public.duplicate_quotation(current_setting('test.qt')::uuid);
-  assert (select number from public.quotations where id = v) = 'QT-' || current_setting('test.year') || '-0002', 'duplicate quotation number';
+  assert (select number from public.quotations where id = v) = 'QT-' || current_setting('test.year') || '002', 'duplicate quotation number';
 end $$;
 
 -- ---------------------------------------------------------------- staff C of business A can work with documents

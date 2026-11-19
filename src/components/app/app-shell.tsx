@@ -34,6 +34,7 @@ import { useI18n } from "@/components/providers";
 import type { MessageKey } from "@/lib/i18n";
 import { signOut } from "@/app/actions/auth";
 import { AddSheet } from "./add-sheet";
+import { ThemeToggle } from "./theme-toggle";
 import { Logo } from "./logo";
 
 interface NavItem {
@@ -173,9 +174,12 @@ export function AppShell({ children, userLabel, businessName }: { children: Reac
     <div className="min-h-dvh lg:flex">
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-dvh w-72 shrink-0 flex-col gap-8 overflow-y-auto border-r bg-card/70 px-4 py-6 backdrop-blur lg:flex">
-        <Link href="/" className="px-2" aria-label="BukuTigaLima">
-          <Logo />
-        </Link>
+        <div className="flex items-center justify-between gap-2 pl-2">
+          <Link href="/" aria-label="BukuTigaLima">
+            <Logo />
+          </Link>
+          <ThemeToggle />
+        </div>
         <NavList pathname={pathname} />
         <div className="mt-auto">
           <AccountFooter userLabel={userLabel} businessName={businessName} />
@@ -188,14 +192,17 @@ export function AppShell({ children, userLabel, businessName }: { children: Reac
           <Link href="/" aria-label="BukuTigaLima">
             <Logo />
           </Link>
-          <button
-            type="button"
-            onClick={() => setMenuOpen(true)}
-            aria-label={t("nav.menu")}
-            className="grid size-11 place-items-center rounded-xl text-foreground hover:bg-muted"
-          >
-            <Menu className="size-6" />
-          </button>
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <button
+              type="button"
+              onClick={() => setMenuOpen(true)}
+              aria-label={t("nav.menu")}
+              className="grid size-11 place-items-center rounded-xl text-foreground hover:bg-muted"
+            >
+              <Menu className="size-6" />
+            </button>
+          </div>
         </header>
         <main className="mx-auto w-full max-w-5xl px-4 pb-32 pt-4 sm:px-6 lg:px-10 lg:pb-12 lg:pt-8">{children}</main>
       </div>

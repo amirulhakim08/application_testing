@@ -44,7 +44,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ kind: st
     if (!p || !p.receiptNumber) return new Response("Not found", { status: 404 });
     const inv = p.invoiceId ? await getInvoice(ctx, p.invoiceId) : null;
     const customer = inv?.customerSnapshot ?? (await liveParty(ctx, p.customerId));
-    data = await receiptPdf(ctx, p, customer, inv ? { total: inv.total, outstanding: inv.outstanding } : null, lang, template);
+    data = await receiptPdf(ctx, p, customer, inv ? { total: inv.total, outstanding: inv.outstanding } : null, lang, template, p.sale);
     name = pdfFilename("Resit", p.receiptNumber);
   } else if (kind === "delivery-order") {
     const o = await getDeliveryOrder(ctx, id);

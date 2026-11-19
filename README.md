@@ -62,6 +62,14 @@ default language; English is available. Currency MYR, timezone Asia/Kuala_Lumpur
   business default; `?download=1` downloads instead of opening (print from the browser's PDF viewer). Issued invoices
   print their company/customer snapshot. Responses are `Cache-Control: private, no-store`.
 
+### Numbering and direct sales
+
+* Every document number is `PREFIX-YYMMDDNNN` (e.g. `QT-261023001`, `INV-261023001`, `DO-…`, `RC-…`), counted per
+  business, type and day, prefix from Settings → Documents. Numbers issued before this change keep the old
+  `PREFIX-YYYY-NNNN` form.
+* **Direct sale receipt** (`/receipts/new`): items, SST and charges like an invoice, paid in full at once, no invoice
+  created (`cash_sales`, `record_cash_sale`). Receipts cannot be edited; void the payment and issue a new one.
+
 The KiraGo sections below still describe the expense module accurately unless noted.
 
 ## Architecture

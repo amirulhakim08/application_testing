@@ -21,7 +21,7 @@ function friendly(err: { message?: string; code?: string } | null, lang: "ms" | 
   if (m.includes("only draft") || m.includes("cannot be edited") || m.includes("cannot be changed"))
     return pick("Dokumen ini tidak boleh diubah lagi.", "This document can no longer be changed.");
   if (m.includes("issued invoices")) return pick("Bayaran hanya boleh direkod pada invois yang sudah dikeluarkan.", "Payments can only be recorded on issued invoices.");
-  if (m.includes("total must be more")) return pick("Jumlah invois mesti lebih daripada sifar.", "Invoice total must be more than zero.");
+  if (m.includes("total must be more")) return pick("Jumlah mesti lebih daripada sifar.", "The total must be more than zero.");
   if (m.includes("rejected quotations")) return pick("Sebut harga yang ditolak tidak boleh ditukar.", "Rejected quotations cannot be converted.");
   if (m.includes("already converted")) return pick("Sebut harga ini sudah ditukar ke invois.", "This quotation was already converted.");
   if (m.includes("reason is required")) return pick("Sila nyatakan sebab.", "Please give a reason.");
@@ -328,6 +328,43 @@ export async function recordPayment(input: PaymentInput): Promise<ActionResult<{
     p_reference: d.reference,
     p_description: d.description,
     p_notes: d.notes,
+    p_key: d.requestKey,
+  });
+  const row = (Array.isArray(data) ? data[0] : data) as { payment_id?: string; receipt_number?: string } | null;
+  if (error || !row?.payment_id) return { ok: false, error: friendly(error, ctx.preferences.language) };
+  refresh();
+  return { ok: true, data: { paymentId: row.payment_id, receiptNumber: row.receipt_number ?? "" } };
+}
+
+const cashSaleSchema = z.object({
+  customerId: uuid.nullable().optional(),
+  saleDate: isoDate,
+  method: z.enum(["cash", "bank_transfer", "duitnow", "card", "cheque", "ewallet", "other"]),
+  reference: optText(120),
+  notes: optText(2000),
+  items: z.array(itemSchema).min(1, "Add at least one item").max(200),
+  charges: z.array(chargeSchema).max(10).default([]),
+  requestKey: uuid,
+});
+export type CashSaleInput = z.input<typeof cashSaleSchema>;
+
+/** Direct sale: items are priced on the server, paid in full at once and a receipt is issued. No invoice is created. */
+export async function recordCashSale(input: CashSaleInput): Promise<ActionResult<{ paymentId: string; receiptNumber: string }>> {
+  const ctx = await getContext();
+  const r = cashSaleSchema.safeParse(input);
+  if (!r.success) return { ok: false, error: friendly({ message: "invalid" }, ctx.preferences.language), fieldErrors: fieldErrors(r.error) };
+  const d = r.data;
+  const { data, error } = await ctx.supabase.rpc("record_cash_sale", {
+    p_org: ctx.company.id,
+    p_payload: {
+      customer_id: d.customerId ?? null,
+      sale_date: d.saleDate,
+      method: d.method,
+      reference: d.reference,
+      notes: d.notes,
+      items: itemsPayload(d.items),
+      charges: d.charges,
+    },
     p_key: d.requestKey,
   });
   const row = (Array.isArray(data) ? data[0] : data) as { payment_id?: string; receipt_number?: string } | null;

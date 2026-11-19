@@ -23,7 +23,7 @@ const step = async (name, fn) => {
 };
 const shot = async (p, name) => SHOTS && p.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true });
 const kl = (offsetDays = 0) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kuala_Lumpur" }).format(new Date(Date.now() + offsetDays * 86400000));
-const year = kl().slice(0, 4);
+const day = kl().slice(2).replaceAll("-", ""); // YYMMDD, numbers are PREFIX-YYMMDDNNN
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
@@ -102,7 +102,7 @@ try {
     await page.getByRole("button", { name: "Save draft" }).click();
     await page.waitForURL(/\/quotations\/[0-9a-f-]{36}$/);
     quotationUrl = page.url();
-    await page.getByRole("heading", { name: `QT-${year}-0001` }).waitFor();
+    await page.getByRole("heading", { name: `QT-${day}001` }).waitFor();
     await page.getByText("RM453.00").first().waitFor();
     await page.getByText("Draft").first().waitFor();
     await shot(page, "s03-quotation-view");
@@ -129,7 +129,7 @@ try {
     await page.goto(invoiceUrl);
     await page.getByRole("button", { name: "Issue invoice" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Issue invoice" }).click();
-    await page.getByRole("heading", { name: `INV-${year}-0001` }).waitFor();
+    await page.getByRole("heading", { name: `INV-${day}001` }).waitFor();
     await page.getByText("Unpaid").first().waitFor();
     assert.equal(await page.getByRole("link", { name: "Edit" }).count(), 0);
     await page.goto(`${invoiceUrl}/edit`);
@@ -145,7 +145,7 @@ try {
     bigInvoiceUrl = page.url();
     await page.getByRole("button", { name: "Issue invoice" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Issue invoice" }).click();
-    await page.getByRole("heading", { name: `INV-${year}-0002` }).waitFor();
+    await page.getByRole("heading", { name: `INV-${day}002` }).waitFor();
 
     await page.getByRole("button", { name: "Record payment" }).click();
     assert.equal(await page.inputValue("#pay-amount"), "5000.00"); // prefilled with the balance
@@ -153,7 +153,7 @@ try {
     await page.fill("#pay-ref", "MBB-778");
     // Double-click submit: the request key makes the second call return the same payment
     await page.getByRole("dialog").getByRole("button", { name: "Record payment" }).dblclick();
-    await page.getByText(`Receipt RC-${year}-0001 issued`).waitFor();
+    await page.getByText(`Receipt RC-${day}001 issued`).waitFor();
     await page.getByTestId("invoice-balance").filter({ hasText: "RM3,000.00" }).waitFor();
     await page.getByText("Partially paid").first().waitFor();
     assert.equal(await page.getByText(/MBB-778/).count(), 1, "one payment row, no duplicate");
@@ -165,7 +165,7 @@ try {
     await page.getByText("The amount is more than the invoice balance.").waitFor();
     await page.fill("#pay-amount", "3000");
     await page.getByRole("dialog").getByRole("button", { name: "Record payment" }).click();
-    await page.getByText(`Receipt RC-${year}-0002 issued`).waitFor();
+    await page.getByText(`Receipt RC-${day}002 issued`).waitFor();
     await page.getByTestId("invoice-balance").filter({ hasText: "RM0.00" }).waitFor();
     await page.getByText("Paid", { exact: true }).first().waitFor();
     assert.equal(await page.getByRole("button", { name: "Record payment" }).count(), 0);
@@ -189,7 +189,7 @@ try {
       assert.ok((await r.body()).subarray(0, 5).toString() === "%PDF-", "starts with %PDF-");
     }
     const dl = await page.request.get(`${BASE}/api/documents/invoice/${invId}/pdf?download=1`);
-    assert.match(dl.headers()["content-disposition"] ?? "", /attachment; filename="[^"]*INV-\d{4}-0002\.pdf"/);
+    assert.match(dl.headers()["content-disposition"] ?? "", /attachment; filename="[^"]*INV-\d{6}002\.pdf"/);
     // The invoice page offers the PDF buttons
     await page.getByRole("link", { name: "View PDF / Print" }).waitFor();
     const rcLink = page.locator('a[href^="/api/documents/receipt/"]').first();
@@ -216,7 +216,7 @@ try {
     await page.waitForURL(/\/delivery-orders\/[0-9a-f-]{36}$/);
     await page.getByText("Draft (number given on issue)").waitFor();
     await page.getByRole("button", { name: "Issue delivery order" }).click();
-    await page.getByRole("heading", { name: `DO-${year}-0001` }).waitFor();
+    await page.getByRole("heading", { name: `DO-${day}001` }).waitFor();
     await page.getByRole("button", { name: "Mark delivered" }).click();
     await page.fill("#dl-recv", "Pak Mat");
     await page.getByRole("dialog").getByRole("button", { name: "Mark delivered" }).click();
@@ -228,7 +228,7 @@ try {
     if (SHOTS) fs.writeFileSync(`${SHOTS}/delivery-order.pdf`, await doPdf.body());
     await shot(page, "s11-delivery-order");
     await page.goto(`${BASE}/delivery-orders`);
-    await page.getByText(`DO-${year}-0001`).waitFor();
+    await page.getByText(`DO-${day}001`).waitFor();
   });
 
   await step("Test 6: overdue invoice appears in Outstanding with days overdue and reminder", async () => {
@@ -250,7 +250,7 @@ try {
     await page.getByText("Partially paid").first().waitFor(); // overdue never hides partial payment status
     await page.getByRole("button", { name: "WhatsApp reminder" }).first().click();
     const msg = await page.getByRole("dialog").locator("textarea").inputValue();
-    assert.match(msg, /INV-\d{4}-\d{4}/);
+    assert.match(msg, /INV-\d{9}/);
     const href = await page.getByRole("link", { name: "Open WhatsApp" }).getAttribute("href");
     assert.match(href, /^https:\/\/wa\.me\/60123456789\?text=/);
     await shot(page, "s05-outstanding");
@@ -262,10 +262,51 @@ try {
     await page.fill("#pay-desc", "Jualan kaunter");
     await page.fill("#pay-amount", "45");
     await page.getByRole("dialog").getByRole("button", { name: "Record payment" }).click();
-    await page.getByText(/Receipt RC-\d{4}-0003 issued/).waitFor();
+    await page.getByText(/Receipt RC-\d{6}003 issued/).waitFor();
     await page.goto(`${BASE}/receipts`);
     await page.getByText("Jualan kaunter").waitFor();
     await shot(page, "s06-receipts");
+  });
+
+  await step("direct sale receipt: items, service charge, paid at once, no invoice", async () => {
+    const invoicesBefore = await page.request.get(`${BASE}/invoices`).then((r) => r.text()).then((h) => (h.match(/INV-\d{9}/g) ?? []).length);
+    await page.goto(`${BASE}/receipts`);
+    await page.getByRole("link", { name: "New sale receipt" }).click();
+    await page.waitForURL(`${BASE}/receipts/new`);
+    await addItem(page, 0, { description: "Nasi lemak", qty: "2", price: "12.50", tax: "6" });
+    await addItem(page, 1, { description: "Teh tarik", qty: "1", price: "3", tax: "0" });
+    await page.getByRole("button", { name: /Add charge/ }).click(); // default: service charge 10%
+    await page.selectOption("#sale-method", "duitnow");
+    await page.getByText("RM32.30").first().waitFor(); // 28.00 + 2.80 charge + 1.50 tax
+    await page.getByRole("button", { name: "Issue paid receipt" }).dblclick();
+    await page.waitForURL(/\/receipts\/[0-9a-f-]{36}$/);
+    await page.getByRole("heading", { name: `RC-${day}004` }).waitFor();
+    await page.getByText("Direct sale").first().waitFor();
+    await page.getByText("Walk-in customer (no name)").waitFor();
+    await page.getByText("RM32.30").first().waitFor();
+    const pdf = await page.request.get(`${BASE}${await page.getByRole("link", { name: "View PDF / Print" }).getAttribute("href")}`);
+    assert.equal(pdf.status(), 200);
+    if (SHOTS) fs.writeFileSync(`${SHOTS}/sale-receipt.pdf`, await pdf.body());
+    await shot(page, "s12-sale-receipt");
+    // Double click created one sale only, and no invoice was created
+    await page.goto(`${BASE}/receipts`);
+    assert.equal(await page.getByText(`RC-${day}005`).count(), 0, "no duplicate receipt");
+    const invoicesAfter = await page.request.get(`${BASE}/invoices`).then((r) => r.text()).then((h) => (h.match(/INV-\d{9}/g) ?? []).length);
+    assert.equal(invoicesAfter, invoicesBefore, "no invoice created");
+  });
+
+  await step("day/night toggle switches the theme and remembers it", async () => {
+    await page.goto(`${BASE}/`);
+    const before = await page.evaluate(() => document.documentElement.classList.contains("dark"));
+    await page.getByRole("button", { name: before ? "Switch to day mode" : "Switch to night mode" }).first().click();
+    await page.waitForFunction((b) => document.documentElement.classList.contains("dark") !== b, before);
+    await page.waitForTimeout(500);
+    await page.goto(`${BASE}/receipts`);
+    assert.equal(await page.evaluate(() => document.documentElement.classList.contains("dark")), !before, "theme kept after navigation");
+    await shot(page, "s13-receipts-night");
+    await page.goto(`${BASE}/receipts/new`);
+    await shot(page, "s14-sale-editor-night");
+    await page.getByRole("button", { name: !before ? "Switch to day mode" : "Switch to night mode" }).first().click();
   });
 
   await step("customer profile shows totals and history", async () => {
@@ -298,7 +339,7 @@ try {
     await b.goto(`${BASE}/quotations/new`);
     await addItem(b, 0, { description: "Nasi lemak", qty: "10", price: "5" });
     await b.getByRole("button", { name: "Save draft" }).click();
-    await b.getByRole("heading", { name: `QT-${year}-0001` }).waitFor();
+    await b.getByRole("heading", { name: `QT-${day}001` }).waitFor();
     await other.close();
   });
 

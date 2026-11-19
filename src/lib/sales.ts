@@ -270,6 +270,8 @@ export interface Payment {
   voidReason: string | null;
   receiptId: string | null;
   receiptNumber: string | null;
+  /** Set when this payment is a direct sale (receipt with items, no invoice). */
+  cashSaleId: string | null;
 }
 export interface Invoice extends InvoiceSummary, DocTotals {
   customerPo: string | null;
@@ -342,7 +344,7 @@ export async function listInvoices(
 }
 
 const PAYMENT_COLS =
-  "id, invoice_id, customer_id, amount::text, payment_date, method, reference, description, voided_at, void_reason, receipts(id, number), invoices(number), customers(name)";
+  "id, invoice_id, customer_id, amount::text, payment_date, method, reference, description, voided_at, void_reason, receipts(id, number), invoices(number), customers(name), cash_sales(id)";
 function mapPayment(r: Row): Payment {
   const rc = (Array.isArray(r.receipts) ? r.receipts[0] : r.receipts) as { id?: string; number?: string } | null;
   const inv = r.invoices as { number?: string } | null;
@@ -362,6 +364,7 @@ function mapPayment(r: Row): Payment {
     voidReason: (r.void_reason as string) ?? null,
     receiptId: rc?.id ?? null,
     receiptNumber: rc?.number ?? null,
+    cashSaleId: ((Array.isArray(r.cash_sales) ? r.cash_sales[0] : r.cash_sales) as { id?: string } | null)?.id ?? null,
   };
 }
 
@@ -429,5 +432,38 @@ export async function getPayment(ctx: AppContext, id: string) {
   const { data } = await ctx.supabase.from("payments").select(`${PAYMENT_COLS}, notes, created_at`).eq("id", id).eq("organization_id", ctx.company.id).maybeSingle();
   if (!data) return null;
   const r = data as Row;
-  return { ...mapPayment(r), notes: (r.notes as string) ?? null };
+  const payment = { ...mapPayment(r), notes: (r.notes as string) ?? null };
+  return { ...payment, sale: payment.cashSaleId ? await getCashSale(ctx, payment.cashSaleId) : null };
+}
+
+export interface CashSale extends DocTotals {
+  id: string;
+  saleDate: ISODate;
+  notes: string | null;
+  items: DocItem[];
+  charges: DocCharge[];
+  customerSnapshot: PartySnapshot | null;
+  companySnapshot: Record<string, string | null> | null;
+}
+
+async function getCashSale(ctx: AppContext, id: string): Promise<CashSale | null> {
+  const { data } = await ctx.supabase
+    .from("cash_sales")
+    .select(`id, sale_date, notes, charges, customer_snapshot, company_snapshot, ${TOTAL_COLS}`)
+    .eq("id", id)
+    .eq("organization_id", ctx.company.id)
+    .maybeSingle();
+  if (!data) return null;
+  const r = data as Row;
+  const { data: items } = await ctx.supabase.from("cash_sale_items").select(ITEM_COLS).eq("cash_sale_id", id).order("position");
+  return {
+    id,
+    saleDate: r.sale_date as string,
+    notes: (r.notes as string) ?? null,
+    ...mapTotals(r),
+    charges: mapCharges(r.charges),
+    customerSnapshot: (r.customer_snapshot as PartySnapshot) ?? null,
+    companySnapshot: (r.company_snapshot as Record<string, string | null>) ?? null,
+    items: (items ?? []).map((i) => mapItem(i as Row)),
+  };
 }

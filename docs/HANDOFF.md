@@ -86,4 +86,12 @@ kirago-sg with the owner's OK. The owner's other Supabase project "mydevelopment
   (receipt id = payment id; org-scoped, 404 otherwise). Pages /delivery-orders (list/new/[id]/edit); PDF/print buttons
   on quotation, invoice, receipt and payment lists. PDFs use built-in WinAnsi fonts: keep text Latin (use "-" not "−").
   Tests: 98 unit, RLS + sales + delivery SQL suites, smoke 18/18, sales 14/14.
+- Owner request after Phase 3: migration 0008 — (1) daily document numbers for ALL types: PREFIX-YYMMDDNNN
+  (e.g. INV-261023001; restarts at 001 per day; 4+ digits after 999, never wraps; old PREFIX-YYYY-NNNN numbers stay;
+  document_sequences now has id PK + seq_date, legacy yearly rows have seq_date null); (2) direct sale receipts:
+  cash_sales + cash_sale_items, RPC record_cash_sale(org, payload, request_key) prices items like invoices, records a
+  standalone payment + receipt via record_payment, no invoice; immutable (void the payment to correct). Pages
+  /receipts/new (DocumentEditor kind="sale") and /receipts/[id] (id = payment id); itemised receipt PDF.
+  (3) Day/night toggle (ThemeToggle) in sidebar + mobile header; saves preference.
+  Deploy order: apply 0008 to the DB BEFORE pushing the code (code embeds cash_sales in payment queries).
 - Next: Phase 4 (expense refinements), 5 (business dashboard/reports), 6 (landing), 7 (security review).

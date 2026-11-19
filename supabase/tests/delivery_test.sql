@@ -3,7 +3,7 @@
 set client_min_messages = warning;
 \o /dev/null
 select set_config('test.org_a', (select id::text from public.organizations where created_by = '11111111-1111-1111-1111-111111111111'), false);
-select set_config('test.year', extract(year from public.today_kl())::text, false);
+select set_config('test.year', to_char(public.today_kl(), 'YYMMDD'), false);
 select set_config('test.inv', (select id::text from public.invoices where organization_id = current_setting('test.org_a')::uuid and quotation_id is not null limit 1), false);
 \o
 
@@ -33,7 +33,7 @@ do $$
 declare d record;
 begin
   select * into d from public.delivery_orders where id = current_setting('test.do')::uuid;
-  assert d.status = 'issued' and d.number = 'DO-' || current_setting('test.year') || '-0001', 'issued number ' || coalesce(d.number, 'null');
+  assert d.status = 'issued' and d.number = 'DO-' || current_setting('test.year') || '001', 'issued number ' || coalesce(d.number, 'null');
   assert d.customer_snapshot ->> 'name' is not null, 'customer snapshot';
   begin
     perform public.save_delivery_order(current_setting('test.org_a')::uuid, d.id, '{"items": [{"description": "x", "quantity": 1}]}'::jsonb);

@@ -4,7 +4,7 @@ import type { AppContext } from "@/lib/data";
 import { formatDateLabel } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { ORG_ASSETS_BUCKET } from "@/lib/org-assets";
-import type { Invoice, PartySnapshot, Quotation } from "@/lib/sales";
+import type { CashSale, Invoice, PartySnapshot, Quotation } from "@/lib/sales";
 import type { DeliveryOrder } from "@/lib/delivery";
 import { BusinessDocument, type PdfDocumentData, type PdfParty, type TemplateName } from "./document";
 import { amountInWords } from "./words";
@@ -21,6 +21,7 @@ const L = {
     billTo: "Dibilkan kepada",
     deliverTo: "Hantar kepada",
     receivedFrom: "Diterima daripada",
+    walkIn: "Pelanggan tunai",
     date: "Tarikh",
     validUntil: "Sah sehingga",
     due: "Tarikh akhir bayaran",
@@ -73,6 +74,7 @@ const L = {
     billTo: "Bill to",
     deliverTo: "Deliver to",
     receivedFrom: "Received from",
+    walkIn: "Walk-in customer",
     date: "Date",
     validUntil: "Valid until",
     due: "Due date",
@@ -321,8 +323,34 @@ export async function receiptPdf(
   invoice: { total: number; outstanding: number } | null,
   lang: Lang,
   template: TemplateName,
+  sale: CashSale | null = null,
 ): Promise<PdfDocumentData> {
   const t = L[lang];
+  if (sale) {
+    const company = snapshotCompany(sale.companySnapshot, liveCompany(ctx));
+    const taxLabel = company.taxLabel ?? ctx.settings.taxLabel;
+    return {
+      template,
+      title: t.receipt,
+      number: p.receiptNumber ?? "—",
+      watermark: p.voided ? t.void : null,
+      company: await companyBlock(ctx, company, lang),
+      party: partyFrom(t.receivedFrom, sale.customerSnapshot ?? customer, t.walkIn),
+      meta: [
+        { label: t.date, value: d(p.date, lang) },
+        { label: t.method, value: t.methods[p.method] ?? p.method },
+        ...(p.reference ? [{ label: t.ref, value: p.reference }] : []),
+      ],
+      columns: columns(lang, taxLabel),
+      items: docItems(sale.items),
+      totals: [...docTotals(sale, taxLabel, lang).map((r) => ({ ...r, strong: false })), { label: t.amountReceived, value: money(p.amount), strong: true }],
+      amountInWords: amountInWords(p.amount, lang),
+      sections: sale.notes ? [{ title: t.notes, body: sale.notes }] : [],
+      signatures: [t.receivedBy],
+      footer: t.footer,
+      pageLabel: t.page,
+    };
+  }
   return {
     template,
     title: t.receipt,

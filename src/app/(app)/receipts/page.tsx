@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 import { getContext } from "@/lib/data";
 import { getI18n } from "@/lib/i18n/server";
 import { listPayments } from "@/lib/sales";
@@ -20,7 +22,15 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
   const receipts = (await listPayments(ctx, { q })).filter((p) => p.receiptNumber);
   return (
     <div className="animate-fade-up">
-      <PageHeader title={t("rc.title")} subtitle={t("rc.subtitle")} />
+      <PageHeader
+        title={t("rc.title")}
+        subtitle={t("rc.subtitle")}
+        action={
+          <Link href="/receipts/new" className={buttonVariants()}>
+            <Plus /> {t("sale.newShort")}
+          </Link>
+        }
+      />
       <SearchBox />
       <Card className="mt-4 divide-y overflow-hidden">
         {receipts.length === 0 && <p className="p-10 text-center text-sm text-muted-foreground">{t("rc.empty")}</p>}
@@ -28,7 +38,10 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
           <div key={p.id} className={`flex min-h-16 items-center gap-3 px-5 py-3 ${p.voided ? "opacity-60" : ""}`}>
             <span className="min-w-0 flex-1">
               <span className="flex items-center gap-2 font-semibold">
-                {p.receiptNumber}
+                <Link href={`/receipts/${p.id}`} className="hover:underline">
+                  {p.receiptNumber}
+                </Link>
+                {p.cashSaleId && <Badge>{t("sale.badge")}</Badge>}
                 {p.voided && <Badge variant="danger">{t("pay.voided")}</Badge>}
               </span>
               <span className="block truncate text-sm text-muted-foreground">

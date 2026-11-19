@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Camera, Mic, PenLine, ChevronRight } from "lucide-react";
+import { Camera, Mic, PenLine, ScrollText, ChevronRight } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useI18n } from "@/components/providers";
 
 export const CAPTURE_OPTIONS = [
+  { href: "/receipts/new", icon: ScrollText, title: "sale.newShort", hint: "sale.subtitle" },
   { href: "/add/scan", icon: Camera, title: "add.scan", hint: "add.scan.hint" },
   { href: "/add/voice", icon: Mic, title: "add.voice", hint: "add.voice.hint" },
   { href: "/add/manual", icon: PenLine, title: "add.manual", hint: "add.manual.hint" },
