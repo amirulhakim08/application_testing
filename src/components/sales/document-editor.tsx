@@ -3,14 +3,13 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, PackagePlus, Plus, ReceiptText, Trash2, UserPlus } from "lucide-react";
+import { Loader2, PackagePlus, Plus, ReceiptText, Trash2 } from "lucide-react";
 import { useI18n } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { Field } from "@/components/app/business-forms";
-import { Segmented } from "@/components/ui/segmented";
-import { CustomerDialog } from "./customer-form";
+import { CustomerPicker, type NewCustomer } from "./customer-picker";
 import { formatMoney } from "@/lib/money";
 import { priceDocument, rm, type ChargeInput } from "@/lib/documents";
 import { cn } from "@/lib/utils";
@@ -52,6 +51,7 @@ export interface EditorCustomer {
   id: string;
   name: string;
   companyName: string | null;
+  phone: string | null;
 }
 export interface EditorProduct {
   id: string;
@@ -86,14 +86,15 @@ export function DocumentEditor({
 }) {
   const { t } = useI18n();
   const router = useRouter();
-  const [customers, setCustomers] = React.useState(initialCustomers);
+  const customers = initialCustomers;
   const [customerId, setCustomerId] = React.useState(initial.customerId ?? "");
-  const emptyManual: ManualCustomer = { name: "", companyName: "", phone: "", email: "", billingAddress: "" };
-  const [customerMode, setCustomerMode] = React.useState<"list" | "manual">(initial.customerManual?.name ? "manual" : "list");
-  const [manual, setManual] = React.useState<ManualCustomer>({ ...emptyManual, ...(initial.customerManual ?? {}) });
-  // Default: typed details are also added to the customer list. An existing draft with typed details keeps them on the document only.
+  const [newCustomer, setNewCustomer] = React.useState<NewCustomer | null>(
+    initial.customerManual?.name
+      ? { name: initial.customerManual.name, phone: initial.customerManual.phone ?? "", billingAddress: initial.customerManual.billingAddress ?? "" }
+      : null,
+  );
+  // Default: a new customer is also added to the customer list. An existing draft with typed details keeps them on the document only.
   const [saveCustomer, setSaveCustomer] = React.useState(!initial.customerManual?.name);
-  const setM = (patch: Partial<ManualCustomer>) => setManual((m) => ({ ...m, ...patch }));
   const [date, setDate] = React.useState(initial.date);
   const [second, setSecond] = React.useState(initial.secondDate);
   const [title, setTitle] = React.useState(initial.title ?? "");
@@ -105,7 +106,6 @@ export function DocumentEditor({
   const [items, setItems] = React.useState<EditorItem[]>(() => (initial.items.length ? initial.items.map((i) => ({ ...i, key: newKey() })) : [blankItem()]));
   const [charges, setCharges] = React.useState<ChargeInput[]>(initial.charges);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
-  const [newCustomerOpen, setNewCustomerOpen] = React.useState(false);
   const [pending, start] = React.useTransition();
   const [catalogPick, setCatalogPick] = React.useState("");
   // Direct sale only: paid in full now. The request key is created once per form so a retry cannot record twice.
@@ -140,10 +140,10 @@ export function DocumentEditor({
 
   const submit = () => {
     start(async () => {
-      const useManual = customerMode === "manual" && Boolean(manual.name.trim());
+      const typed = !customerId && newCustomer?.name.trim() ? newCustomer : null;
       const common = {
-        customerId: customerMode === "list" ? customerId || null : null,
-        customerManual: useManual ? manual : null,
+        customerId: customerId || null,
+        customerManual: typed ? { name: typed.name, phone: typed.phone, billingAddress: typed.billingAddress } : null,
         saveCustomer,
         notes,
         terms,
@@ -197,71 +197,18 @@ export function DocumentEditor({
     >
       <div className="grid min-w-0 gap-5">
         <Card className="grid gap-4 p-5">
-          <Segmented
-            name={t("c.customer")}
-            size="sm"
-            value={customerMode}
-            onChange={setCustomerMode}
-            options={[
-              { value: "list", label: t("cus.fromList") },
-              { value: "manual", label: t("cus.typeManual") },
-            ]}
+          <CustomerPicker
+            customers={customers}
+            customerId={customerId}
+            onSelect={setCustomerId}
+            newCustomer={newCustomer}
+            onNewCustomer={setNewCustomer}
+            saveCustomer={saveCustomer}
+            onSaveCustomer={setSaveCustomer}
+            walkIn={isSale}
+            required={!isSale}
+            error={errors.customerId ?? errors["customerManual.name"]}
           />
-          {customerMode === "manual" ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field id="cm-name" label={t("cus.name")} error={errors["customerManual.name"]}>
-                <Input id="cm-name" required={!isSale} maxLength={160} value={manual.name} onChange={(e) => setM({ name: e.target.value })} />
-              </Field>
-              <Field id="cm-company" label={t("cus.company")} optional>
-                <Input id="cm-company" maxLength={160} value={manual.companyName} onChange={(e) => setM({ companyName: e.target.value })} />
-              </Field>
-              <Field id="cm-phone" label={t("cus.phone")} optional>
-                <Input id="cm-phone" type="tel" maxLength={40} value={manual.phone} onChange={(e) => setM({ phone: e.target.value })} />
-              </Field>
-              <Field id="cm-email" label={t("cus.email")} optional error={errors["customerManual.email"]}>
-                <Input id="cm-email" type="email" maxLength={160} value={manual.email} onChange={(e) => setM({ email: e.target.value })} />
-              </Field>
-              <div className="sm:col-span-2">
-                <Field id="cm-address" label={t("cus.billing")} optional>
-                  <Textarea id="cm-address" rows={2} maxLength={500} value={manual.billingAddress} onChange={(e) => setM({ billingAddress: e.target.value })} />
-                </Field>
-              </div>
-              <label className="flex items-start gap-3 text-sm sm:col-span-2">
-                <input type="checkbox" className="mt-0.5 size-5 accent-[var(--primary)]" checked={saveCustomer} onChange={(e) => setSaveCustomer(e.target.checked)} />
-                <span>
-                  <span className="font-medium">{t("cus.saveToList")}</span>
-                  <span className="block text-xs text-muted-foreground">{t("cus.saveToListHint")}</span>
-                </span>
-              </label>
-            </div>
-          ) : (
-          <div>
-            <Field id="doc-customer" label={t("c.customer")} error={errors.customerId} optional={isSale}>
-              <div className="flex gap-2">
-                <Select id="doc-customer" value={customerId} onChange={(e) => setCustomerId(e.target.value)} className="min-w-0 flex-1">
-                  <option value="">{isSale ? t("sale.walkIn") : t("cus.choose")}</option>
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                      {c.companyName ? ` — ${c.companyName}` : ""}
-                    </option>
-                  ))}
-                </Select>
-                <Button type="button" variant="outline" size="icon" aria-label={t("cus.new")} onClick={() => setNewCustomerOpen(true)}>
-                  <UserPlus />
-                </Button>
-              </div>
-            </Field>
-            <CustomerDialog
-              open={newCustomerOpen}
-              onOpenChange={setNewCustomerOpen}
-              onSaved={(newId, v) => {
-                setCustomers((list) => [...list, { id: newId, name: v.name, companyName: v.companyName ?? null }].sort((a, b) => a.name.localeCompare(b.name)));
-                setCustomerId(newId);
-              }}
-            />
-          </div>
-          )}
           {isSale ? (
             <div className="grid gap-4 sm:grid-cols-3">
               <Field id="doc-date" label={t("pay.date")} error={errors.saleDate}>

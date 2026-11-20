@@ -51,6 +51,13 @@ async function signupWithBusiness(p, email, business) {
   await p.getByRole("heading", { name: "Your business is ready!" }).waitFor();
 }
 
+/** Customer search: type part of the name, then choose the listed customer. */
+async function pickCustomer(p, query, name) {
+  await p.fill("#doc-customer", query);
+  await p.getByRole("option", { name: new RegExp(name) }).click();
+  await p.getByRole("button", { name: "Change customer" }).waitFor();
+}
+
 async function addItem(p, idx, { description, qty, price, discount, tax }) {
   if (idx > 0) await p.getByRole("button", { name: "Add item" }).click();
   await p.fill(`#item-${idx}-description`, description);
@@ -91,7 +98,7 @@ try {
 
   await step("Test 2b: quotation with catalog item, custom item, discount and service charge", async () => {
     await page.goto(`${BASE}/quotations/new`);
-    await page.selectOption("#doc-customer", { label: "Encik Ali — Syarikat Maju Jaya" });
+    await pickCustomer(page, "Ali", "Encik Ali");
     await page.getByLabel("From catalog").selectOption({ label: "Website Development — RM150.00" });
     await page.fill("#item-0-qty", "2");
     await addItem(page, 1, { description: "Domain setup", price: "99.99", discount: "9.99", tax: "0" });
@@ -138,7 +145,7 @@ try {
 
   await step("Test 4/5: RM5,000 invoice, RM2,000 then RM3,000; receipts per payment", async () => {
     await page.goto(`${BASE}/invoices/new`);
-    await page.selectOption("#doc-customer", { label: "Encik Ali — Syarikat Maju Jaya" });
+    await pickCustomer(page, "Ali", "Encik Ali");
     await addItem(page, 0, { description: "Projek pengubahsuaian", qty: "1", price: "5000", tax: "0" });
     await page.getByRole("button", { name: "Save draft" }).click();
     await page.waitForURL(/\/invoices\/[0-9a-f-]{36}$/);
@@ -233,7 +240,7 @@ try {
 
   await step("Test 6: overdue invoice appears in Outstanding with days overdue and reminder", async () => {
     await page.goto(`${BASE}/invoices/new`);
-    await page.selectOption("#doc-customer", { label: "Encik Ali — Syarikat Maju Jaya" });
+    await pickCustomer(page, "Ali", "Encik Ali");
     await page.fill("#doc-date", kl(-40));
     await page.fill("#doc-second", kl(-10));
     await addItem(page, 0, { description: "Bekalan bulan lepas", qty: "1", price: "500", tax: "0" });
@@ -300,11 +307,13 @@ try {
     await page.goto(`${BASE}/customers`);
     const before = await page.locator('a[href^="/customers/"]').count();
     await page.goto(`${BASE}/quotations/new`);
-    await page.getByRole("radio", { name: "Type manually" }).click();
-    await page.fill("#cm-name", "Puan Siti");
+    await page.fill("#doc-customer", "Puan Siti");
+    await page.getByText("No matching customer.").waitFor();
+    await page.getByRole("option", { name: 'Add new customer "Puan Siti"' }).click();
+    assert.equal(await page.inputValue("#cm-name"), "Puan Siti", "typed name carried into the new customer card");
     await page.fill("#cm-phone", "012-3456789");
     await page.fill("#cm-address", "Lot 5, Bangi");
-    await page.getByLabel("Save to customer list").uncheck();
+    await page.getByLabel("This customer will be saved in your Customers list.").uncheck();
     await addItem(page, 0, { description: "Kek coklat", qty: "1", price: "80" });
     await page.getByRole("button", { name: "Save draft" }).click();
     await page.waitForURL(/\/quotations\/[0-9a-f-]{36}$/);
@@ -326,8 +335,10 @@ try {
 
     // Saved to the list (default) from a direct sale receipt
     await page.goto(`${BASE}/receipts/new`);
-    await page.getByRole("radio", { name: "Type manually" }).click();
-    await page.fill("#cm-name", "Encik Rahman");
+    await page.getByText("Walk-in customer (no name)").waitFor();
+    await page.fill("#doc-customer", "Encik Rahman");
+    await page.keyboard.press("Enter"); // only option: add new customer
+    await page.getByText("This customer will be saved in your Customers list.").waitFor();
     await addItem(page, 0, { description: "Roti canai", qty: "3", price: "1.50", tax: "0" });
     await page.getByRole("button", { name: "Issue paid receipt" }).click();
     await page.waitForURL(/\/receipts\/[0-9a-f-]{36}$/);

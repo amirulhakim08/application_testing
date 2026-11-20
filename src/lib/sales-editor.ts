@@ -6,7 +6,7 @@ import type { EditorProduct, EditorCustomer, EditorInitial } from "@/components/
 export async function editorData(ctx: AppContext) {
   const [customers, products] = await Promise.all([listCustomers(ctx), listProducts(ctx, { activeOnly: true })]);
   return {
-    customers: customers.map<EditorCustomer>((c) => ({ id: c.id, name: c.name, companyName: c.companyName })),
+    customers: customers.map<EditorCustomer>((c) => ({ id: c.id, name: c.name, companyName: c.companyName, phone: c.phone })),
     products: products.map<EditorProduct>((p) => ({ id: p.id, name: p.name, description: p.description, unit: p.unit, priceCents: p.priceCents, taxRate: p.taxRate })),
     defaultTaxRate: String(Number(ctx.settings.defaultTaxRate)),
     taxLabel: ctx.settings.taxLabel,
