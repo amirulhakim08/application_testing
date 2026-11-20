@@ -272,6 +272,8 @@ export interface Payment {
   receiptNumber: string | null;
   /** Set when this payment is a direct sale (receipt with items, no invoice). */
   cashSaleId: string | null;
+  /** A proof of payment file is attached (open via /api/payments/<id>/proof). */
+  hasProof: boolean;
 }
 export interface Invoice extends InvoiceSummary, DocTotals {
   customerPo: string | null;
@@ -345,6 +347,15 @@ export async function listInvoices(
 
 const PAYMENT_COLS =
   "id, invoice_id, customer_id, amount::text, payment_date, method, reference, description, voided_at, void_reason, receipts(id, number), invoices(number), customers(name)";
+/** Marks payments that have a proof of payment. Separate query so pages still work if it fails. */
+async function withProofs(ctx: AppContext, list: Payment[]): Promise<Payment[]> {
+  if (list.length === 0) return list;
+  const { data, error } = await ctx.supabase.from("payments").select("id, proof_path").in("id", list.map((p) => p.id)).not("proof_path", "is", null);
+  if (error) return list;
+  const has = new Set((data ?? []).map((r) => r.id as string));
+  return list.map((p) => ({ ...p, hasProof: has.has(p.id) }));
+}
+
 /** Marks payments that are direct sales. Kept as a separate query so payment pages still work if it fails. */
 async function withCashSales(ctx: AppContext, list: Payment[]): Promise<Payment[]> {
   if (list.length === 0) return list;
@@ -377,6 +388,7 @@ function mapPayment(r: Row): Payment {
     receiptId: rc?.id ?? null,
     receiptNumber: rc?.number ?? null,
     cashSaleId: null,
+    hasProof: false,
   };
 }
 
@@ -407,7 +419,7 @@ export async function getInvoice(ctx: AppContext, id: string): Promise<Invoice |
     customerSnapshot: (r.customer_snapshot as PartySnapshot) ?? null,
     quotationNumber: q?.number ?? null,
     items: (items ?? []).map((i) => mapItem(i as Row)),
-    payments: (pays ?? []).map((p) => mapPayment(p as Row)),
+    payments: await withProofs(ctx, (pays ?? []).map((p) => mapPayment(p as Row))),
   };
 }
 
@@ -444,7 +456,7 @@ export async function getPayment(ctx: AppContext, id: string) {
   const { data } = await ctx.supabase.from("payments").select(`${PAYMENT_COLS}, notes, created_at`).eq("id", id).eq("organization_id", ctx.company.id).maybeSingle();
   if (!data) return null;
   const r = data as Row;
-  const [mapped] = await withCashSales(ctx, [mapPayment(r)]);
+  const [mapped] = await withProofs(ctx, await withCashSales(ctx, [mapPayment(r)]));
   const payment = { ...mapped, notes: (r.notes as string) ?? null };
   return { ...payment, sale: payment.cashSaleId ? await getCashSale(ctx, payment.cashSaleId) : null };
 }

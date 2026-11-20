@@ -354,7 +354,7 @@ const paymentSchema = z.object({
 });
 export type PaymentInput = z.input<typeof paymentSchema>;
 
-export async function recordPayment(input: PaymentInput): Promise<ActionResult<{ paymentId: string; receiptNumber: string }>> {
+export async function recordPayment(input: PaymentInput): Promise<ActionResult<{ paymentId: string; receiptNumber: string; organizationId: string }>> {
   const ctx = await getContext();
   const r = paymentSchema.safeParse(input);
   if (!r.success) return { ok: false, error: friendly({ message: "invalid" }, ctx.preferences.language), fieldErrors: fieldErrors(r.error) };
@@ -377,7 +377,7 @@ export async function recordPayment(input: PaymentInput): Promise<ActionResult<{
   const row = (Array.isArray(data) ? data[0] : data) as { payment_id?: string; receipt_number?: string } | null;
   if (error || !row?.payment_id) return { ok: false, error: friendly(error, ctx.preferences.language) };
   refresh();
-  return { ok: true, data: { paymentId: row.payment_id, receiptNumber: row.receipt_number ?? "" } };
+  return { ok: true, data: { paymentId: row.payment_id, receiptNumber: row.receipt_number ?? "", organizationId: ctx.company.id } };
 }
 
 const cashSaleSchema = z.object({
@@ -393,7 +393,7 @@ const cashSaleSchema = z.object({
 export type CashSaleInput = z.input<typeof cashSaleSchema>;
 
 /** Direct sale: items are priced on the server, paid in full at once and a receipt is issued. No invoice is created. */
-export async function recordCashSale(input: CashSaleInput): Promise<ActionResult<{ paymentId: string; receiptNumber: string }>> {
+export async function recordCashSale(input: CashSaleInput): Promise<ActionResult<{ paymentId: string; receiptNumber: string; organizationId: string }>> {
   const ctx = await getContext();
   const r = cashSaleSchema.safeParse(input);
   if (!r.success) return { ok: false, error: friendly({ message: "invalid" }, ctx.preferences.language), fieldErrors: fieldErrors(r.error) };
@@ -419,7 +419,13 @@ export async function recordCashSale(input: CashSaleInput): Promise<ActionResult
   const row = (Array.isArray(data) ? data[0] : data) as { payment_id?: string; receipt_number?: string } | null;
   if (error || !row?.payment_id) return { ok: false, error: friendly(error, ctx.preferences.language) };
   refresh();
-  return { ok: true, data: { paymentId: row.payment_id, receiptNumber: row.receipt_number ?? "" } };
+  return { ok: true, data: { paymentId: row.payment_id, receiptNumber: row.receipt_number ?? "", organizationId: ctx.company.id } };
+}
+
+/** Links an uploaded proof of payment (already in the payment's storage folder) to the payment. */
+export async function attachPaymentProof(paymentId: string, path: string) {
+  if (typeof path !== "string" || path.length > 300) return { ok: false, error: "Invalid path" } as const;
+  return rpcSimple<null>("attach_payment_proof", { p_payment_id: paymentId, p_path: path });
 }
 
 export async function voidPayment(id: string, reason: string) {

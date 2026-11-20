@@ -51,6 +51,16 @@ async function signupWithBusiness(p, email, business) {
   await p.getByRole("heading", { name: "Your business is ready!" }).waitFor();
 }
 
+/** Renders lines of text to a PNG, standing in for a bank app screenshot. */
+async function makeProofImage(browser, lines) {
+  const c = await browser.newContext({ viewport: { width: 600, height: 60 + lines.length * 56 } });
+  const p = await c.newPage();
+  await p.setContent(`<body style="margin:0;padding:24px;background:#fff;font:28px Arial">${lines.map((l) => `<div style="margin:12px 0">${l}</div>`).join("")}</body>`);
+  const buf = await p.screenshot();
+  await c.close();
+  return buf;
+}
+
 /** Customer search: type part of the name, then choose the listed customer. */
 async function pickCustomer(p, query, name) {
   await p.fill("#doc-customer", query);
@@ -340,9 +350,20 @@ try {
     await page.keyboard.press("Enter"); // only option: add new customer
     await page.getByText("This customer will be saved in your Customers list.").waitFor();
     await addItem(page, 0, { description: "Roti canai", qty: "3", price: "1.50", tax: "0" });
+    // Proof of payment: a DuitNow-style screenshot is read on the device and fills date + reference
+    const proofPng = await makeProofImage(browser, ["DuitNow Transfer Successful", "Amount RM 4.50", `Date ${kl().split("-").reverse().join("/")}`, "Reference ID 2026ABC123456"]);
+    await page.selectOption("#sale-method", "duitnow");
+    await page.getByTestId("proof-input").setInputFiles({ name: "duitnow.png", mimeType: "image/png", buffer: proofPng });
+    await page.getByText("Filled in from the proof — please check.").waitFor({ timeout: 60000 });
+    assert.equal(await page.inputValue("#sale-ref"), "2026ABC123456");
     await page.getByRole("button", { name: "Issue paid receipt" }).click();
     await page.waitForURL(/\/receipts\/[0-9a-f-]{36}$/);
     await page.getByText("Encik Rahman").first().waitFor();
+    const proofLink = page.getByRole("link", { name: "View proof of payment" });
+    await proofLink.waitFor();
+    const proof = await page.request.get(`${BASE}${await proofLink.getAttribute("href")}`);
+    assert.equal(proof.status(), 200, "proof opens");
+    assert.equal(proof.headers()["content-type"], "image/png");
     await page.goto(`${BASE}/customers`);
     await page.getByRole("link", { name: /Encik Rahman/ }).waitFor();
     assert.equal(await page.locator('a[href^="/customers/"]').count(), before + 1, "saved customer added once");

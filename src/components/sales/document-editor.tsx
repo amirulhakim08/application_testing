@@ -10,6 +10,8 @@ import { Card } from "@/components/ui/card";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { Field } from "@/components/app/business-forms";
 import { CustomerPicker, type NewCustomer } from "./customer-picker";
+import { PaymentProofField } from "./payment-proof-field";
+import { uploadPaymentProof } from "@/lib/payment-proof-client";
 import { formatMoney } from "@/lib/money";
 import { priceDocument, rm, type ChargeInput } from "@/lib/documents";
 import { cn } from "@/lib/utils";
@@ -113,6 +115,8 @@ export function DocumentEditor({
   const [reference, setReference] = React.useState("");
   const [requestKey] = React.useState(() => crypto.randomUUID());
   const isSale = kind === "sale";
+  const [proofFile, setProofFile] = React.useState<File | null>(null);
+  const [proofAmount, setProofAmount] = React.useState<number | null>(null);
 
   const totals = React.useMemo(() => priceDocument(items, charges), [items, charges]);
   const setItem = (key: string, patch: Partial<EditorItem>) => setItems((list) => list.map((i) => (i.key === key ? { ...i, ...patch } : i)));
@@ -166,6 +170,7 @@ export function DocumentEditor({
           return;
         }
         toast.success(t("pay.saved", { n: r.data!.receiptNumber }));
+        if (proofFile && !(await uploadPaymentProof(r.data!.organizationId, r.data!.paymentId, proofFile))) toast.warning(t("proof.uploadFailed"));
         router.push(`/receipts/${r.data!.paymentId}`);
         router.refresh();
         return;
@@ -226,6 +231,23 @@ export function DocumentEditor({
               <Field id="sale-ref" label={t("pay.reference")}>
                 <Input id="sale-ref" maxLength={120} value={reference} onChange={(e) => setReference(e.target.value)} />
               </Field>
+              <div className="sm:col-span-3">
+                <PaymentProofField
+                  file={proofFile}
+                  onFile={(f) => {
+                    setProofFile(f);
+                    if (!f) setProofAmount(null);
+                  }}
+                  onRead={(r) => {
+                    if (r.date && r.date <= todayKL()) setDate(r.date);
+                    if (r.reference) setReference(r.reference);
+                    setProofAmount(r.amountCents);
+                  }}
+                />
+                {proofAmount !== null && totals.valid && totals.total > 0 && proofAmount !== totals.total && (
+                  <p className="mt-1 px-1 text-xs text-warning">{t("proof.mismatch", { amt: formatMoney(proofAmount) })}</p>
+                )}
+              </div>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">

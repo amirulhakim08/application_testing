@@ -94,6 +94,10 @@ export async function deleteAccount(confirmation: string): Promise<Result> {
     const orgId = o.organization_id as string;
     const { data: assets } = await admin.storage.from(ORG_ASSETS_BUCKET).list(orgId, { limit: 100 });
     if (assets?.length) await admin.storage.from(ORG_ASSETS_BUCKET).remove(assets.map((a) => `${orgId}/${a.name}`));
+    // Proofs of payment: "<org>/<payment>/<file>"
+    const { data: proofs } = await admin.from("payments").select("proof_path").eq("organization_id", orgId).not("proof_path", "is", null);
+    const proofPaths = (proofs ?? []).map((p) => p.proof_path as string);
+    for (let i = 0; i < proofPaths.length; i += 100) await admin.storage.from("payment-proofs").remove(proofPaths.slice(i, i + 100));
     await admin.from("organizations").delete().eq("id", orgId);
   }
   const { error } = await admin.auth.admin.deleteUser(ctx.user.id);

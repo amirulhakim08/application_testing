@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Paperclip } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 import { notFound } from "next/navigation";
 import { getContext } from "@/lib/data";
 import { getI18n } from "@/lib/i18n/server";
@@ -110,6 +112,11 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
                   </span>
                 </span>
                 <span className={`tabular font-semibold ${p.voided ? "line-through" : ""}`}>{formatMoney(p.amount)}</span>
+                {p.hasProof && (
+                  <a href={`/api/payments/${p.id}/proof`} target="_blank" rel="noopener" className={buttonVariants({ size: "sm", variant: "ghost" })} aria-label={`${t("proof.view")} ${p.receiptNumber ?? ""}`}>
+                    <Paperclip />
+                  </a>
+                )}
                 {p.receiptNumber && <PdfButtons compact kind="receipt" id={p.id} label={p.receiptNumber} defaultTemplate={ctx.settings.documentTemplate} />}
                 {!p.voided && <VoidPaymentButton id={p.id} />}
               </div>

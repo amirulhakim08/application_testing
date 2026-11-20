@@ -13,6 +13,8 @@ import { Field } from "@/components/app/business-forms";
 import { formatMoney } from "@/lib/money";
 import { todayKL } from "@/lib/dates";
 import { reminderMessage, rm, whatsappLink, whatsappNumber } from "@/lib/documents";
+import { PaymentProofField } from "./payment-proof-field";
+import { uploadPaymentProof } from "@/lib/payment-proof-client";
 import {
   cancelDeliveryOrder,
   convertQuotation,
@@ -226,6 +228,7 @@ export function RecordPaymentDialog({
   const [description, setDescription] = React.useState("");
   const [customerId, setCustomerId] = React.useState("");
   const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [proofFile, setProofFile] = React.useState<File | null>(null);
 
   const openDialog = () => {
     setKey(crypto.randomUUID());
@@ -236,6 +239,7 @@ export function RecordPaymentDialog({
     setDescription("");
     setCustomerId("");
     setErrors({});
+    setProofFile(null);
     setOpen(true);
   };
 
@@ -267,6 +271,7 @@ export function RecordPaymentDialog({
                   return;
                 }
                 toast.success(t("pay.saved", { n: r.data!.receiptNumber }));
+                if (proofFile && !(await uploadPaymentProof(r.data!.organizationId, r.data!.paymentId, proofFile))) toast.warning(t("proof.uploadFailed"));
                 setOpen(false);
                 router.refresh();
               });
@@ -311,6 +316,15 @@ export function RecordPaymentDialog({
             <Field id="pay-ref" label={t("pay.reference")}>
               <Input id="pay-ref" maxLength={120} value={reference} onChange={(e) => setReference(e.target.value)} />
             </Field>
+            <PaymentProofField
+              file={proofFile}
+              onFile={setProofFile}
+              onRead={(r) => {
+                if (r.amountCents !== null && (!outstandingCents || r.amountCents <= outstandingCents)) setAmount(rm(r.amountCents));
+                if (r.date && r.date <= todayKL()) setDate(r.date);
+                if (r.reference) setReference(r.reference);
+              }}
+            />
             <div className="flex justify-end gap-2">
               <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
                 {t("c.cancel")}

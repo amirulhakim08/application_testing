@@ -50,3 +50,43 @@ begin
 end $$;
 reset role;
 select 'ALL MANUAL CUSTOMER TESTS PASSED' as result;
+
+-- Payment proofs (migration 0010)
+set role authenticated;
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', false) \g /dev/null
+do $$
+declare v_pay uuid; v_org uuid := current_setting('test.org_a')::uuid; v_path text;
+begin
+  select payment_id into v_pay from public.record_payment(v_org, null, null, 12.00, public.today_kl(), 'duitnow', 'REF1', 'Proof test', null, gen_random_uuid());
+  v_path := v_org || '/' || v_pay || '/proof.jpg';
+  assert public.storage_payment_proof_ok(v_path), 'member may upload to own payment folder';
+  assert not public.storage_payment_proof_ok(v_org || '/' || v_pay || '/../x.jpg'), 'no path tricks';
+  assert not public.storage_payment_proof_ok(v_org || '/' || gen_random_uuid() || '/x.jpg'), 'unknown payment refused';
+  begin
+    perform public.attach_payment_proof(v_pay, 'someone/else.jpg');
+    raise exception 'foreign path accepted';
+  exception when check_violation then null;
+  end;
+  perform public.attach_payment_proof(v_pay, v_path);
+  perform public.attach_payment_proof(v_pay, v_path); -- retry is fine
+  assert (select proof_path from public.payments where id = v_pay) = v_path, 'proof linked';
+  assert not public.storage_payment_proof_ok(v_path), 'no second upload once linked';
+  begin
+    perform public.attach_payment_proof(v_pay, v_org || '/' || v_pay || '/other.jpg');
+    raise exception 'proof replaced';
+  exception when check_violation then null;
+  end;
+  perform set_config('test.proof_pay', v_pay::text, false);
+end $$;
+select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', false) \g /dev/null
+do $$
+begin
+  assert not public.storage_payment_proof_ok(current_setting('test.org_a') || '/' || current_setting('test.proof_pay') || '/x.jpg'), 'B cannot upload to A';
+  begin
+    perform public.attach_payment_proof(current_setting('test.proof_pay')::uuid, 'x');
+    raise exception 'B attached to A';
+  exception when insufficient_privilege or no_data_found then null;
+  end;
+end $$;
+reset role;
+select 'ALL PAYMENT PROOF TESTS PASSED' as result;

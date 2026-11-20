@@ -99,4 +99,9 @@ kirago-sg with the owner's OK. The owner's other Supabase project "mydevelopment
   customer_snapshot with customer_id null (payload customer_manual, sanitised by manual_party()). Status change,
   convert, duplicate, issue (invoice/DO), create DO and record_cash_sale accept a snapshot instead of customer_id.
   Before 0009 is applied, unsaved typed details are silently dropped (document saves without customer).
+- Migration 0010 (payment proofs): optional proof of payment on direct sale receipts and on Record payment.
+  Private bucket "payment-proofs" (5 MB; jpg/png/webp/pdf), path "<org>/<payment>/<file>"; upload allowed only into
+  a payment of the user's business that has no proof yet (storage_payment_proof_ok); attach_payment_proof() links it
+  once (payments.proof_path). Images are read on-device (tesseract + src/lib/ocr/parse-payment-proof.ts) to suggest
+  amount/date/reference. View via /api/payments/<id>/proof (signed URL, 120 s). Code tolerates 0010 not applied.
 - Next: Phase 4 (expense refinements), 5 (business dashboard/reports), 6 (landing), 7 (security review).

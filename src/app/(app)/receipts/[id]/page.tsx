@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Paperclip } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 import { notFound } from "next/navigation";
 import { getContext } from "@/lib/data";
 import { getI18n } from "@/lib/i18n/server";
@@ -43,6 +45,11 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
       )}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <PdfButtons kind="receipt" id={p.id} defaultTemplate={ctx.settings.documentTemplate} />
+        {p.hasProof && (
+          <a href={`/api/payments/${p.id}/proof`} target="_blank" rel="noopener" className={buttonVariants({ variant: "outline" })}>
+            <Paperclip /> {t("proof.view")}
+          </a>
+        )}
         {!p.voided && <VoidPaymentButton id={p.id} />}
       </div>
       {p.sale ? (
