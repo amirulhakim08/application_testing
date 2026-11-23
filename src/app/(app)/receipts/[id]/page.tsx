@@ -11,7 +11,7 @@ import { uuid } from "@/lib/validation";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { VoidPaymentButton } from "@/components/sales/doc-actions";
+import { ReceiptFixActions, VoidPaymentButton } from "@/components/sales/doc-actions";
 import { DocumentView } from "@/components/sales/document-view";
 import { PdfButtons } from "@/components/sales/pdf-buttons";
 
@@ -50,6 +50,12 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
             <Paperclip /> {t("proof.view")}
           </a>
         )}
+        <ReceiptFixActions
+          id={p.id}
+          number={p.receiptNumber}
+          canCorrect={Boolean(p.sale) && !p.voided}
+          canDelete={ctx.organization.role !== "staff" && Date.now() - new Date(p.createdAt).getTime() < 24 * 3600 * 1000}
+        />
         {!p.voided && <VoidPaymentButton id={p.id} />}
       </div>
       {p.sale ? (

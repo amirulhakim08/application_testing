@@ -77,6 +77,7 @@ export function DocumentEditor({
   products,
   defaultTaxRate,
   taxLabel,
+  replaces,
 }: {
   kind: "quotation" | "invoice" | "sale";
   id: string | null;
@@ -85,6 +86,8 @@ export function DocumentEditor({
   products: EditorProduct[];
   defaultTaxRate: string;
   taxLabel: string;
+  /** Direct sale only: correcting this receipt (it is voided when the new one is issued). */
+  replaces?: { paymentId: string; number: string; method: string; reference: string } | null;
 }) {
   const { t } = useI18n();
   const router = useRouter();
@@ -111,8 +114,10 @@ export function DocumentEditor({
   const [pending, start] = React.useTransition();
   const [catalogPick, setCatalogPick] = React.useState("");
   // Direct sale only: paid in full now. The request key is created once per form so a retry cannot record twice.
-  const [method, setMethod] = React.useState<(typeof SALE_METHODS)[number]>("cash");
-  const [reference, setReference] = React.useState("");
+  const [method, setMethod] = React.useState<(typeof SALE_METHODS)[number]>(
+    SALE_METHODS.includes(replaces?.method as "cash") ? (replaces!.method as (typeof SALE_METHODS)[number]) : "cash",
+  );
+  const [reference, setReference] = React.useState(replaces?.reference ?? "");
   const [requestKey] = React.useState(() => crypto.randomUUID());
   const isSale = kind === "sale";
   const [proofFile, setProofFile] = React.useState<File | null>(null);
@@ -163,7 +168,7 @@ export function DocumentEditor({
         charges: charges.map((c) => ({ ...c, value: c.value.trim() })),
       };
       if (isSale) {
-        const r = await recordCashSale({ ...common, saleDate: date, method, reference, requestKey });
+        const r = await recordCashSale({ ...common, saleDate: date, method, reference, requestKey, replacesPaymentId: replaces?.paymentId ?? null });
         if (!r.ok) {
           setErrors(r.fieldErrors ?? {});
           toast.error(r.error);
@@ -201,6 +206,11 @@ export function DocumentEditor({
       }}
     >
       <div className="grid min-w-0 gap-5">
+        {replaces && (
+          <p className="rounded-2xl bg-warning-soft px-4 py-3 text-sm text-warning" role="status">
+            {t("rc.correcting", { n: replaces.number })}
+          </p>
+        )}
         <Card className="grid gap-4 p-5">
           <CustomerPicker
             customers={customers}

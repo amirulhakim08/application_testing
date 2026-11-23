@@ -9,3 +9,4 @@ coverage
 .vercel
 public/ocr/
 *.traineddata
+/public/pdfjs

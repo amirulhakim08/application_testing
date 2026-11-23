@@ -71,6 +71,9 @@ default language; English is available. Currency MYR, timezone Asia/Kuala_Lumpur
   kept on that document only (stored as its customer snapshot).
 * **Proof of payment** (optional) on direct sale receipts and recorded payments: JPG/PNG/WEBP/PDF up to 5 MB, stored
   privately; images are read on the device to fill amount, date and reference.
+* **Fixing receipts:** "Correct receipt" opens a copy to fix and voids the old one when the new one is issued;
+  owners/admins can "Delete receipt" within 24 hours (kept in the audit log). PDFs open in an in-app viewer with
+  Back, Share (phones) and Download.
 * **Direct sale receipt** (`/receipts/new`): items, SST and charges like an invoice, paid in full at once, no invoice
   created (`cash_sales`, `record_cash_sale`). Receipts cannot be edited; void the payment and issue a new one.
 

@@ -208,14 +208,14 @@ try {
     const dl = await page.request.get(`${BASE}/api/documents/invoice/${invId}/pdf?download=1`);
     assert.match(dl.headers()["content-disposition"] ?? "", /attachment; filename="[^"]*INV-\d{6}002\.pdf"/);
     // The invoice page offers the PDF buttons
-    await page.getByRole("link", { name: "View PDF / Print" }).waitFor();
-    const rcLink = page.locator('a[href^="/api/documents/receipt/"]').first();
-    const rc = await page.request.get(`${BASE}${await rcLink.getAttribute("href")}`);
+    await page.getByRole("link", { name: "View / Share PDF" }).waitFor();
+    const rcLink = page.locator('a[href^="/documents/receipt/"]').first();
+    const rc = await page.request.get(`${BASE}/api${await rcLink.getAttribute("href")}/pdf`);
     assert.equal(rc.status(), 200);
     assert.ok((await rc.body()).subarray(0, 5).toString() === "%PDF-");
     await page.goto(`${BASE}/quotations`);
     await page.locator('a[href^="/quotations/"]').filter({ hasText: "QT-" }).first().click();
-    const qtLink = page.getByRole("link", { name: "View PDF / Print" });
+    const qtLink = page.getByRole("link", { name: "Download PDF" });
     const qt = await page.request.get(`${BASE}${await qtLink.getAttribute("href")}`);
     assert.equal(qt.status(), 200);
     // Not-found and bad kinds are refused
@@ -240,7 +240,7 @@ try {
     await page.getByText("Pak Mat").waitFor();
     await page.getByText("Delivered", { exact: true }).first().waitFor();
     assert.equal(await page.getByRole("button", { name: "Cancel delivery order" }).count(), 0, "delivered orders cannot be cancelled");
-    const doPdf = await page.request.get(`${BASE}${await page.getByRole("link", { name: "View PDF / Print" }).getAttribute("href")}`);
+    const doPdf = await page.request.get(`${BASE}${await page.getByRole("link", { name: "Download PDF" }).getAttribute("href")}`);
     assert.equal(doPdf.status(), 200);
     if (SHOTS) fs.writeFileSync(`${SHOTS}/delivery-order.pdf`, await doPdf.body());
     await shot(page, "s11-delivery-order");
@@ -301,15 +301,50 @@ try {
     await page.getByText("Direct sale").first().waitFor();
     await page.getByText("Walk-in customer (no name)").waitFor();
     await page.getByText("RM32.30").first().waitFor();
-    const pdf = await page.request.get(`${BASE}${await page.getByRole("link", { name: "View PDF / Print" }).getAttribute("href")}`);
+    const pdf = await page.request.get(`${BASE}${await page.getByRole("link", { name: "Download PDF" }).getAttribute("href")}`);
     assert.equal(pdf.status(), 200);
     if (SHOTS) fs.writeFileSync(`${SHOTS}/sale-receipt.pdf`, await pdf.body());
     await shot(page, "s12-sale-receipt");
+    const saleUrl = page.url();
+    // In-app PDF view: rendered on the page, with Back to the receipt
+    await page.getByRole("link", { name: "View / Share PDF" }).click();
+    await page.waitForURL(/\/documents\/receipt\/[0-9a-f-]{36}$/);
+    await page.getByTestId("pdf-pages").locator("canvas").first().waitFor({ timeout: 30000 });
+    await shot(page, "s15-pdf-view");
+    await page.getByRole("button", { name: "Back" }).click();
+    await page.waitForURL(saleUrl);
     // Double click created one sale only, and no invoice was created
     await page.goto(`${BASE}/receipts`);
     assert.equal(await page.getByText(`RC-${day}005`).count(), 0, "no duplicate receipt");
     const invoicesAfter = await page.request.get(`${BASE}/invoices`).then((r) => r.text()).then((h) => (h.match(/INV-\d{9}/g) ?? []).length);
     assert.equal(invoicesAfter, invoicesBefore, "no invoice created");
+  });
+
+  await step("correct a receipt (old one voided) and delete a receipt within 24 hours", async () => {
+    await page.goto(`${BASE}/receipts`);
+    await page.getByRole("link", { name: `RC-${day}004`, exact: true }).click();
+    await page.getByRole("link", { name: "Correct receipt" }).click();
+    await page.waitForURL(/\/receipts\/new\?replace=/);
+    await page.getByText(`Correcting RC-${day}004`).waitFor();
+    assert.equal(await page.inputValue("#item-0-description"), "Nasi lemak", "items copied");
+    assert.equal(await page.inputValue("#sale-method"), "duitnow", "method copied");
+    await page.fill("#item-0-description", "Nasi lemak ayam");
+    await page.getByRole("button", { name: "Issue paid receipt" }).click();
+    await page.waitForURL(/\/receipts\/[0-9a-f-]{36}$/);
+    await page.getByText("Nasi lemak ayam").first().waitFor();
+    const correctedHeading = await page.getByRole("heading", { level: 1 }).innerText();
+    await page.goto(`${BASE}/receipts`);
+    await page.getByRole("link", { name: `RC-${day}004`, exact: true }).click();
+    await page.getByText("Voided").first().waitFor();
+    assert.equal(await page.getByRole("link", { name: "Correct receipt" }).count(), 0, "void receipt cannot be corrected again");
+    // Delete the corrected one (pressed by mistake)
+    await page.goto(`${BASE}/receipts`);
+    await page.getByRole("link", { name: correctedHeading, exact: true }).click();
+    await page.getByRole("button", { name: "Delete receipt" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Delete receipt" }).click();
+    await page.waitForURL(`${BASE}/receipts`);
+    await page.getByText("Receipt deleted").waitFor();
+    assert.equal(await page.getByRole("link", { name: correctedHeading, exact: true }).count(), 0, "deleted receipt gone");
   });
 
   await step("customer typed manually: one-off (not saved) and saved to the list", async () => {

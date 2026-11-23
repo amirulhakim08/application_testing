@@ -19,6 +19,7 @@ import {
   cancelDeliveryOrder,
   convertQuotation,
   createDeliveryOrderFrom,
+  deletePaymentReceipt,
   issueDeliveryOrder,
   markDelivered,
   duplicateInvoice,
@@ -529,5 +530,58 @@ export function DeliveryActions({ id, status }: { id: string; status: "draft" | 
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------- fixing receipts
+
+/** "Correct receipt" (direct sales) and "Delete receipt" (owner/admin, within 24 hours of issuing). */
+export function ReceiptFixActions({ id, number, canCorrect, canDelete }: { id: string; number: string; canCorrect: boolean; canDelete: boolean }) {
+  const { t } = useI18n();
+  const router = useRouter();
+  const [open, setOpen] = React.useState(false);
+  const [pending, start] = React.useTransition();
+  return (
+    <>
+      {canCorrect && (
+        <Link href={`/receipts/new?replace=${id}`} className={buttonVariants({ variant: "outline" })}>
+          <Pencil /> {t("rc.correct")}
+        </Link>
+      )}
+      {canDelete && (
+        <Button variant="ghost" className="text-destructive" onClick={() => setOpen(true)}>
+          <Trash2 /> {t("rc.delete")}
+        </Button>
+      )}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent title={t("rc.delete")} description={t("rc.deleteConfirm", { n: number })}>
+          <p className="mb-4 text-xs text-muted-foreground">{t("rc.deleteHint")}</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              {t("c.cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={pending}
+              onClick={() =>
+                start(async () => {
+                  const r = await deletePaymentReceipt(id);
+                  if (!r.ok) {
+                    toast.error(r.error ?? "Error");
+                    return;
+                  }
+                  setOpen(false);
+                  toast.success(t("rc.deleted"));
+                  router.push("/receipts");
+                  router.refresh();
+                })
+              }
+            >
+              {pending ? <Loader2 className="animate-spin" /> : <Trash2 />} {t("rc.delete")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

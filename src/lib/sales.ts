@@ -457,7 +457,7 @@ export async function getPayment(ctx: AppContext, id: string) {
   if (!data) return null;
   const r = data as Row;
   const [mapped] = await withProofs(ctx, await withCashSales(ctx, [mapPayment(r)]));
-  const payment = { ...mapped, notes: (r.notes as string) ?? null };
+  const payment = { ...mapped, notes: (r.notes as string) ?? null, createdAt: r.created_at as string };
   return { ...payment, sale: payment.cashSaleId ? await getCashSale(ctx, payment.cashSaleId) : null };
 }
 

@@ -104,4 +104,11 @@ kirago-sg with the owner's OK. The owner's other Supabase project "mydevelopment
   a payment of the user's business that has no proof yet (storage_payment_proof_ok); attach_payment_proof() links it
   once (payments.proof_path). Images are read on-device (tesseract + src/lib/ocr/parse-payment-proof.ts) to suggest
   amount/date/reference. View via /api/payments/<id>/proof (signed URL, 120 s). Code tolerates 0010 not applied.
+- In-app PDF view /documents/<kind>/<id> (pdf.js renders on device; worker copied to public/pdfjs by
+  scripts/copy-ocr-assets.mjs): Back, template, Share (Web Share API with the PDF file; WhatsApp/Files/Print on
+  phones) or Print (desktop), Download. PDF buttons open this page instead of a new tab.
+- Migration 0011 (fix receipts): record_cash_sale payload.replaces_payment_id voids the old direct sale receipt when
+  the corrected one is issued ("Betulkan resit", /receipts/new?replace=<payment>); delete_payment_receipt() lets
+  owner/admin permanently delete a receipt + payment within 24 h (audit log keeps it; number not reused; proof file
+  removed by the action). Show/hide password toggle (PasswordInput); auth errors translated.
 - Next: Phase 4 (expense refinements), 5 (business dashboard/reports), 6 (landing), 7 (security review).

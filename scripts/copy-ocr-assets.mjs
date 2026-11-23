@@ -26,3 +26,13 @@ try {
   // Never break installs (e.g. production installs without devDependencies); OCR just stays unavailable.
   console.warn("[ocr] could not copy OCR assets:", e.message);
 }
+
+// pdf.js worker for the in-app PDF viewer (documents are rendered on the device, no third-party CDN).
+try {
+  const pdfOut = path.join(root, "public", "pdfjs");
+  fs.mkdirSync(pdfOut, { recursive: true });
+  fs.copyFileSync(path.join(pkgDir("pdfjs-dist"), "build", "pdf.worker.min.mjs"), path.join(pdfOut, "pdf.worker.min.mjs"));
+  console.log("[pdfjs] worker copied to public/pdfjs");
+} catch (e) {
+  console.warn("[pdfjs] could not copy worker:", e.message);
+}

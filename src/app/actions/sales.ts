@@ -17,6 +17,9 @@ function friendly(err: { message?: string; code?: string } | null, lang: "ms" | 
   if (m.includes("at least one item")) return pick("Tambah sekurang-kurangnya satu item.", "Add at least one item.");
   if (m.includes("discount exceeds")) return pick("Diskaun melebihi jumlah item.", "A discount is larger than the item amount.");
   if (m.includes("void the payments")) return pick("Batalkan bayaran untuk invois ini dahulu.", "Void the payments on this invoice first.");
+  if (m.includes("within 24 hours")) return pick("Resit hanya boleh dipadam dalam masa 24 jam. Gunakan Batalkan.", "Receipts can only be deleted within 24 hours. Void it instead.");
+  if (m.includes("only the owner or an admin")) return pick("Hanya pemilik atau admin boleh memadam resit.", "Only the owner or an admin can delete receipts.");
+  if (m.includes("receipt to correct")) return pick("Resit asal sudah dibatalkan atau tidak dijumpai.", "The original receipt is already void or was not found.");
   if (m.includes("delivered orders cannot")) return pick("Delivery order yang sudah dihantar tidak boleh dibatalkan.", "Delivered orders cannot be cancelled.");
   if (m.includes("only draft") || m.includes("cannot be edited") || m.includes("cannot be changed"))
     return pick("Dokumen ini tidak boleh diubah lagi.", "This document can no longer be changed.");
@@ -389,6 +392,8 @@ const cashSaleSchema = z.object({
   items: z.array(itemSchema).min(1, "Add at least one item").max(200),
   charges: z.array(chargeSchema).max(10).default([]),
   requestKey: uuid,
+  /** "Correct receipt": the direct sale receipt this one replaces (voided when this one is issued). */
+  replacesPaymentId: uuid.nullable().optional(),
 });
 export type CashSaleInput = z.input<typeof cashSaleSchema>;
 
@@ -407,6 +412,7 @@ export async function recordCashSale(input: CashSaleInput): Promise<ActionResult
     p_payload: {
       customer_id: cust.customerId,
       customer_manual: cust.manual,
+      replaces_payment_id: d.replacesPaymentId ?? null,
       sale_date: d.saleDate,
       method: d.method,
       reference: d.reference,
@@ -418,6 +424,8 @@ export async function recordCashSale(input: CashSaleInput): Promise<ActionResult
   });
   const row = (Array.isArray(data) ? data[0] : data) as { payment_id?: string; receipt_number?: string } | null;
   if (error || !row?.payment_id) return { ok: false, error: friendly(error, ctx.preferences.language) };
+  // The database voids the corrected receipt in the same transaction; this is a no-op safety net (void is idempotent).
+  if (d.replacesPaymentId) await ctx.supabase.rpc("void_payment", { p_payment_id: d.replacesPaymentId, p_reason: `Dibetulkan / Corrected: ${row.receipt_number ?? ""}` });
   refresh();
   return { ok: true, data: { paymentId: row.payment_id, receiptNumber: row.receipt_number ?? "", organizationId: ctx.company.id } };
 }
@@ -426,6 +434,17 @@ export async function recordCashSale(input: CashSaleInput): Promise<ActionResult
 export async function attachPaymentProof(paymentId: string, path: string) {
   if (typeof path !== "string" || path.length > 300) return { ok: false, error: "Invalid path" } as const;
   return rpcSimple<null>("attach_payment_proof", { p_payment_id: paymentId, p_path: path });
+}
+
+/** Permanently deletes a receipt and its payment (owner/admin, within 24 hours). */
+export async function deletePaymentReceipt(id: string): Promise<ActionResult> {
+  const ctx = await getContext();
+  if (!uuid.safeParse(id).success) return { ok: false, error: "Invalid id" };
+  const { data, error } = await ctx.supabase.rpc("delete_payment_receipt", { p_payment_id: id });
+  if (error) return { ok: false, error: friendly(error, ctx.preferences.language) };
+  if (typeof data === "string" && data) await ctx.supabase.storage.from("payment-proofs").remove([data]);
+  refresh();
+  return { ok: true };
 }
 
 export async function voidPayment(id: string, reason: string) {

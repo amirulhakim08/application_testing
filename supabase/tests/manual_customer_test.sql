@@ -90,3 +90,51 @@ begin
 end $$;
 reset role;
 select 'ALL PAYMENT PROOF TESTS PASSED' as result;
+
+-- Correct / delete receipts (migration 0011)
+set role authenticated;
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', false) \g /dev/null
+do $$
+declare v_org uuid := current_setting('test.org_a')::uuid; r1 record; r2 record; v_items jsonb := '[{"description":"Nasi lemak","quantity":2,"unit_price":5}]';
+  v_proof text;
+begin
+  select * into r1 from public.record_cash_sale(v_org, jsonb_build_object('items', v_items), gen_random_uuid());
+  -- Correct it: new receipt issued, old one voided in the same call
+  select * into r2 from public.record_cash_sale(v_org,
+    jsonb_build_object('items', '[{"description":"Nasi lemak ayam","quantity":2,"unit_price":6}]'::jsonb, 'replaces_payment_id', r1.payment_id), gen_random_uuid());
+  assert (select voided_at is not null from public.payments where id = r1.payment_id), 'old receipt voided';
+  assert (select void_reason from public.payments where id = r1.payment_id) like '%' || r2.receipt_number, 'reason names the new receipt';
+  assert (select voided_at is null from public.payments where id = r2.payment_id), 'new receipt valid';
+  -- Cannot correct a void receipt twice
+  begin
+    perform public.record_cash_sale(v_org, jsonb_build_object('items', v_items, 'replaces_payment_id', r1.payment_id), gen_random_uuid());
+    raise exception 'corrected a void receipt';
+  exception when check_violation then null;
+  end;
+  -- Delete within 24 hours (owner)
+  v_proof := public.delete_payment_receipt(r2.payment_id);
+  assert not exists (select 1 from public.payments where id = r2.payment_id), 'payment deleted';
+  assert not exists (select 1 from public.receipts where payment_id = r2.payment_id), 'receipt deleted';
+  assert not exists (select 1 from public.cash_sales where payment_id = r2.payment_id), 'sale deleted';
+  perform set_config('test.old_pay', r1.payment_id::text, false);
+end $$;
+reset role;
+-- Older than 24 hours: refused
+update public.payments set created_at = now() - interval '25 hours' where id = current_setting('test.old_pay')::uuid;
+set role authenticated;
+do $$
+begin
+  perform public.delete_payment_receipt(current_setting('test.old_pay')::uuid);
+  raise exception 'deleted an old receipt';
+exception when check_violation then null;
+end $$;
+-- Another business cannot delete A's receipts
+select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', false) \g /dev/null
+do $$
+begin
+  perform public.delete_payment_receipt(current_setting('test.old_pay')::uuid);
+  raise exception 'B deleted A receipt';
+exception when no_data_found or insufficient_privilege then null;
+end $$;
+reset role;
+select 'ALL RECEIPT FIX TESTS PASSED' as result;
