@@ -44,6 +44,11 @@ try {
     await page.fill("#fullName", "Aina Rahman");
     await page.fill("#email", emailA);
     await page.fill("#password", "correct-horse-battery");
+    // Show/hide password button reveals what was typed
+    await page.getByRole("button", { name: /Show password|Tunjuk kata laluan/ }).first().click();
+    assert.equal(await page.getAttribute("#password", "type"), "text", "password can be shown");
+    await page.getByRole("button", { name: /Hide password|Sembunyi kata laluan/ }).first().click();
+    assert.equal(await page.getAttribute("#password", "type"), "password", "password hidden again");
     await shot(page, "01-signup-mobile");
     await page.click("button[type=submit]");
     await page.waitForURL(`${BASE}/onboarding`);

@@ -9,6 +9,7 @@ import { ChevronRight, Download, FileJson, Loader2, LogOut, Tags, Trash2 } from 
 import { useI18n } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Segmented } from "@/components/ui/segmented";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -234,13 +235,12 @@ function PasswordForm() {
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <Label htmlFor="s-pw">{t("set.newPassword")}</Label>
-          <Input id="s-pw" type="password" autoComplete="new-password" minLength={8} maxLength={72} required value={pw} onChange={(e) => setPw(e.target.value)} />
+          <PasswordInput id="s-pw" autoComplete="new-password" minLength={8} maxLength={72} required value={pw} onChange={(e) => setPw(e.target.value)} />
         </div>
         <div>
           <Label htmlFor="s-pw2">{t("set.confirmPassword")}</Label>
-          <Input
+          <PasswordInput
             id="s-pw2"
-            type="password"
             autoComplete="new-password"
             minLength={8}
             maxLength={72}

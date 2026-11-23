@@ -7,6 +7,7 @@ import { Loader2, MailCheck } from "lucide-react";
 import { useI18n } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { requestPasswordReset, signIn, signUp, updatePassword, type AuthState } from "@/app/actions/auth";
 import { setLanguageCookie } from "@/app/actions/settings";
 
@@ -20,10 +21,11 @@ function Submit({ children, pending }: { children: React.ReactNode; pending: boo
 }
 
 function ErrorText({ state }: { state: AuthState }) {
+  const { t } = useI18n();
   if (!state?.error) return null;
   return (
     <p role="alert" className="rounded-xl bg-warning-soft px-3 py-2 text-sm text-warning">
-      {state.error}
+      {t(state.error as "auth.err.login")}
     </p>
   );
 }
@@ -49,7 +51,7 @@ export function LoginForm() {
   return (
     <form action={action} className="grid gap-4">
       <input type="hidden" name="next" value={next} />
-      {linkError && <p className="rounded-xl bg-warning-soft px-3 py-2 text-sm text-warning">That link is invalid or has expired. Please try again.</p>}
+      {linkError && <p className="rounded-xl bg-warning-soft px-3 py-2 text-sm text-warning">{t("auth.err.link")}</p>}
       <div>
         <Label htmlFor="email">{t("auth.email")}</Label>
         <Input id="email" name="email" type="email" autoComplete="email" required />
@@ -61,7 +63,7 @@ export function LoginForm() {
             {t("auth.forgot")}
           </Link>
         </div>
-        <Input id="password" name="password" type="password" autoComplete="current-password" required />
+        <PasswordInput id="password" name="password" autoComplete="current-password" required />
       </div>
       <ErrorText state={state} />
       <Submit pending={pending}>{t("auth.login")}</Submit>
@@ -101,7 +103,7 @@ export function SignupForm() {
       </div>
       <div>
         <Label htmlFor="password">{t("auth.password")}</Label>
-        <Input id="password" name="password" type="password" autoComplete="new-password" minLength={8} required />
+        <PasswordInput id="password" name="password" autoComplete="new-password" minLength={8} required />
         <p className="mt-1 text-xs text-muted-foreground">{t("auth.passwordHint")}</p>
       </div>
       <ErrorText state={state} />
@@ -142,7 +144,7 @@ export function UpdatePasswordForm() {
     <form action={action} className="grid gap-4">
       <div>
         <Label htmlFor="password">{t("auth.newPassword")}</Label>
-        <Input id="password" name="password" type="password" autoComplete="new-password" minLength={8} required />
+        <PasswordInput id="password" name="password" autoComplete="new-password" minLength={8} required />
         <p className="mt-1 text-xs text-muted-foreground">{t("auth.passwordHint")}</p>
       </div>
       <ErrorText state={state} />

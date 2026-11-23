@@ -9,8 +9,8 @@ import { siteUrl } from "@/lib/env";
 
 export type AuthState = { error?: string; message?: string } | undefined;
 
-const email = z.string().trim().toLowerCase().email("Enter a valid email");
-const password = z.string().min(8, "Password must be at least 8 characters").max(72);
+const email = z.string().trim().toLowerCase().email("auth.err.email");
+const password = z.string().min(8, "auth.err.short").max(72);
 
 function safeNext(next: FormDataEntryValue | null): string {
   const n = typeof next === "string" ? next : "/";
@@ -18,7 +18,7 @@ function safeNext(next: FormDataEntryValue | null): string {
 }
 
 export async function signIn(_: AuthState, form: FormData): Promise<AuthState> {
-  const parsed = z.object({ email, password: z.string().min(1, "Enter your password") }).safeParse({
+  const parsed = z.object({ email, password: z.string().min(1, "auth.err.noPassword") }).safeParse({
     email: form.get("email"),
     password: form.get("password"),
   });
@@ -26,7 +26,7 @@ export async function signIn(_: AuthState, form: FormData): Promise<AuthState> {
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) {
-    return { error: error.code === "email_not_confirmed" ? "Please verify your email first." : "Incorrect email or password." };
+    return { error: error.code === "email_not_confirmed" ? "auth.err.unverified" : "auth.err.login" };
   }
   redirect(safeNext(form.get("next")));
 }
@@ -54,7 +54,7 @@ export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
       data: { full_name: parsed.data.fullName, language: normalizeLang((await cookies()).get(LANG_COOKIE)?.value) },
     },
   });
-  if (error) return { error: error.code === "weak_password" ? "Please choose a stronger password." : "Could not create account." };
+  if (error) return { error: error.code === "weak_password" ? "auth.err.weak" : "auth.err.signup" };
   if (data.session) redirect("/"); // email confirmation disabled on this project
   return { message: "check_email" };
 }
@@ -73,7 +73,7 @@ export async function updatePassword(_: AuthState, form: FormData): Promise<Auth
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const supabase = await createClient();
   const { error } = await supabase.auth.updateUser({ password: parsed.data });
-  if (error) return { error: "Could not update password. The link may have expired." };
+  if (error) return { error: "auth.err.update" };
   redirect("/");
 }
 
